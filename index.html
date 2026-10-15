@@ -202,6 +202,13 @@ form.sf{display:flex;flex-direction:column;gap:10px;padding-top:12px}
 .fam b{font-family:var(--f-display);font-weight:400;font-size:1.3rem}
 .rep-tabs{flex:none;grid-template-columns:1fr 1fr}
 .rep-tabs button[aria-pressed="true"]{color:#fff;background:var(--pitch);box-shadow:none}
+.swrow{align-items:end}
+.swrow .btn{min-height:46px}
+.swreward{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.swreward>div{background:#ffffff14;border-radius:10px;padding:10px;text-align:center}
+.swreward span{display:block;font-size:.75rem;color:#c9d6cd}
+.swreward b{font-family:var(--f-led);font-weight:400;font-size:1.6rem;color:var(--led)}
+.todaygain{font-size:.85rem;font-weight:800;background:color-mix(in srgb,var(--ball) 18%,var(--surface));border-radius:10px;padding:8px 12px}
 #choreReward label{font-size:.82rem;line-height:1.35;text-align:center;padding:6px}
 #choreReward input{position:absolute;opacity:0;pointer-events:none}
 fieldset.chores label{flex:1 1 30%;min-width:96px;font-size:.85rem;padding:4px 6px;text-align:center}
@@ -382,9 +389,15 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
       </fieldset>
       <fieldset class="prio" id="choreReward">
         <legend>ごほうび（写真つきでさらにアップ）</legend>
-        <label><input type="radio" name="crew" value="pt" checked>家族ポイント<br>1つ 10pt（写真 +5pt）</label>
-        <label><input type="radio" name="crew" value="ef">eFootball時間<br>1つ 5分（写真 +2分）</label>
+        <label><input type="radio" name="crew" value="pt" checked>家族ポイント<br>1つ 10pt・10分ごと +5pt<br>写真 +5pt</label>
+        <label><input type="radio" name="crew" value="ef">eFootball時間<br>1つ 5分・10分ごと +2分<br>写真 +2分</label>
       </fieldset>
+      <div class="row2 swrow">
+        <label class="fl" for="choreMin">かかった時間（分・なくてもOK）
+          <input id="choreMin" type="number" inputmode="numeric" min="0" max="300" placeholder="例：30">
+        </label>
+        <button type="button" class="btn ball" data-swstart="chore">⏱ ストップウォッチで測る</button>
+      </div>
       <label class="fl" for="choreNote">ひとこと（なくてもOK）
         <input id="choreNote" type="text" maxlength="40" placeholder="例：もんじゃと30分歩いた">
       </label>
@@ -399,10 +412,11 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
         <label class="fl" for="exSubj">教科
           <select id="exSubj"><option>数学</option><option>英語</option><option>国語</option><option>理科</option><option>社会</option><option>その他</option></select>
         </label>
-        <label class="fl" for="exMin">時間
-          <select id="exMin"><option value="15">15分</option><option value="30" selected>30分</option><option value="45">45分</option><option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option></select>
+        <label class="fl" for="exMin">時間（分）
+          <input id="exMin" type="number" inputmode="numeric" min="1" max="300" value="30">
         </label>
       </div>
+      <button type="button" class="btn ball" data-swstart="study">⏱ ストップウォッチで測る</button>
       <label class="fl" for="exText">やったこと
         <input id="exText" type="text" maxlength="40" placeholder="例：二次方程式の問題集 p.20〜23">
       </label>
@@ -526,6 +540,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
   </div>
 </div>
 <div class="kick" id="kick" hidden><div class="kbox" id="kickBox" role="dialog" aria-modal="true" aria-label="キックオフタイマー"></div></div>
+<div class="kick" id="sw" hidden><div class="kbox" id="swBox" role="dialog" aria-modal="true" aria-label="ストップウォッチ"></div></div>
 <div class="quiz" id="fc" hidden><div class="qbox" id="fcBox" role="dialog" aria-modal="true" aria-label="暗記カード"></div></div>
 <div class="quiz" id="quiz" hidden><div class="qbox" id="quizBox" role="dialog" aria-modal="true" aria-label="確認テスト"></div></div>
 <div class="toast" id="toast" hidden></div>
@@ -9091,7 +9106,9 @@ function tickKick(force){
 
 /* ---------- 報告（お手伝い・自主勉）→ 家族のLINEへ ---------- */
 const CHORES=['皿洗い','洗濯物','風呂そうじ','もんじゃの散歩','料理の手伝い','買い物','部屋のそうじ','ゴミ出し','その他'];
-const CHORE_PT=10,PHOTO_PT=5,CHORE_MIN=5,PHOTO_MIN=2;
+const CHORE_PT=10,PHOTO_PT=5,CHORE_MIN=5,PHOTO_MIN=2,TIME_STEP=10,TIME_PT=5,TIME_MIN=2;
+// お手伝いの時間ボーナス：10分ごとに +5pt（eFootballなら +2分）
+const choreTimeBonus=(min,ef)=>Math.floor(min/TIME_STEP)*(ef?TIME_MIN:TIME_PT);
 $('choreKinds').insertAdjacentHTML('beforeend',CHORES.map(c=>'<label><input type="checkbox" name="chore" value="'+c+'">'+c+'</label>').join(''));
 const famTotal=()=>S.chores.reduce((a,c)=>a+(Number(c.pts)||0),0)-S.famUsed.reduce((a,u)=>a+(Number(u.pts)||0),0);
 function renderReport(){
@@ -9100,7 +9117,8 @@ function renderReport(){
   const items=[...S.chores.map(c=>({at:c.at||'',t:'🧹 '+c.kind+(c.note?'（'+c.note+'）':''),r:c.reward==='ef'?'+'+c.mins+'分⚽':'+'+c.pts+'pt'})),
     ...S.extra.map(e=>({at:e.at||'',t:'📘 '+e.subject+' '+(e.text||''),r:fmtMin(e.minutes)})),
     ...S.famUsed.map(u=>({at:u.at||'',t:'🎁 家族ポイントを使った',r:'−'+u.pts+'pt'}))].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,5);
-  let h='';
+  const t=today(),tp=S.chores.filter(c=>c.date===t).reduce((a,c)=>a+(Number(c.pts)||0),0);
+  let h='<div class="todaygain">今日がんばった分：eFootball +'+(S.ready.plan&&S.ready.done&&S.ready.config?totals().todayEarn:0)+'分・家族ポイント +'+tp+'pt</div>';
   if(items.length)h+='<div class="replist">'+items.map(i=>'<div class="repitem"><span>'+md(i.at.slice(0,10))+' '+esc(i.t)+'</span><b class="num">'+esc(i.r)+'</b></div>').join('')+'</div>';
   else h+='<div class="note">まだ報告はありません。お手伝いや自主勉をしたら、ここから家族のLINEに送ろう。</div>';
   h+='<div class="row2"><button type="button" class="btn plain" data-famuse="50"'+(famTotal()<50?' disabled':'')+'>50pt 使う</button><button type="button" class="btn plain" data-famuse="100"'+(famTotal()<100?' disabled':'')+'>100pt 使う</button></div>'+
@@ -9128,17 +9146,20 @@ $('choreForm').addEventListener('submit',async ev=>{
   const kinds=picked.map(k=>k==='その他'?note:k),t=today(),n=picked.length,memo=other?'':note;
   // ごほうびは家族ポイントか eFootball 時間のどちらか
   const ef=(document.querySelector('input[name=crew]:checked')||{}).value==='ef';
-  const pts=ef?0:CHORE_PT*n+(file?PHOTO_PT:0),mins=ef?CHORE_MIN*n+(file?PHOTO_MIN:0):0;
-  const reward=ef?'eFootball +'+mins+'分'+(n>1||file?'（'+n+'つ×'+CHORE_MIN+'分'+(file?'＋写真'+PHOTO_MIN+'分':'')+'）':'')+'\neFootball貯金 '+(totals().balance+mins)+'分'
-    :'家族ポイント +'+pts+'pt'+(n>1||file?'（'+n+'つ×'+CHORE_PT+'pt'+(file?'＋写真'+PHOTO_PT+'pt':'')+'）':'')+'\n家族ポイント合計 '+(famTotal()+pts)+'pt';
-  const text='【もんじゃスタジアム】お手伝い報告\n'+md(t)+' '+kinds.join('・')+' をしました！'+(memo?'\n'+memo:'')+'\n'+reward;
+  const time=Math.max(0,Math.min(300,Math.round(Number($('choreMin').value)||0))),tb=choreTimeBonus(time,ef);
+  const pts=ef?0:CHORE_PT*n+(file?PHOTO_PT:0)+tb,mins=ef?CHORE_MIN*n+(file?PHOTO_MIN:0)+tb:0;
+  const parts=[n+'つ×'+(ef?CHORE_MIN+'分':CHORE_PT+'pt')];if(tb)parts.push(time+'分がんばった +'+tb+(ef?'分':'pt'));if(file)parts.push('写真 +'+(ef?PHOTO_MIN+'分':PHOTO_PT+'pt'));
+  const reward=(ef?'eFootball +'+mins+'分':'家族ポイント +'+pts+'pt')+(parts.length>1?'（'+parts.join('、')+'）':'')+
+    (ef?'\neFootball貯金 '+(totals().balance+mins)+'分':'\n家族ポイント合計 '+(famTotal()+pts)+'pt');
+  const text='【もんじゃスタジアム】お手伝い報告\n'+md(t)+' '+kinds.join('・')+' をしました！'+(time?'（'+fmtMin(time)+'）':'')+(memo?'\n'+memo:'')+'\n'+reward;
   const r=await shareReport(text,file);
-  try{await db.collection('chores').add({date:t,kind:kinds.join('・'),kinds,count:n,note:memo,reward:ef?'ef':'pt',pts,mins,photo:!!file,at:new Date().toISOString()});
+  try{await db.collection('chores').add({date:t,kind:kinds.join('・'),kinds,count:n,note:memo,reward:ef?'ef':'pt',pts,mins,time,photo:!!file,at:new Date().toISOString()});
     $('choreForm').reset();toast(shareMsg[r]+'（'+(ef?'eFootball +'+mins+'分':'+'+pts+'pt')+'）')}catch(e){fail(e)}
 });
 $('extraForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(!db)return;
-  const subject=$('exSubj').value,minutes=Number($('exMin').value),text=$('exText').value.trim(),file=$('exPhoto').files[0]||null,err=$('exErr');
+  const subject=$('exSubj').value,minutes=Math.round(Number($('exMin').value)),text=$('exText').value.trim(),file=$('exPhoto').files[0]||null,err=$('exErr');
+  if(!(minutes>=1&&minutes<=300)){err.textContent='時間は1〜300分で入れてね。';err.hidden=false;return}
   if(!text){err.textContent='やったことを書いてね。';err.hidden=false;return}
   err.hidden=true;
   const t=today(),g=Math.round(minutes/60*rate()),T=totals();
@@ -9149,6 +9170,54 @@ $('extraForm').addEventListener('submit',async ev=>{
 });
 document.addEventListener('click',ev=>{const b=ev.target.closest('[data-famuse]');if(!b||!db)return;const n=Number(b.dataset.famuse);
   ask('家族ポイントを '+n+'pt 使う？',async()=>{try{await db.collection('famused').add({pts:n,at:new Date().toISOString()});toast(n+'pt 使いました')}catch(e){fail(e)}})});
+
+/* ---------- ストップウォッチ（勉強・お手伝い）。がんばった分のごほうびがその場で増えていく ---------- */
+const SWKEY='takumiStadiumSW',SW_MAX=180;
+let SW=null,swTimer=null;
+const swSave=()=>{try{SW?localStorage.setItem(SWKEY,JSON.stringify(SW)):localStorage.removeItem(SWKEY)}catch(e){}};
+const swElapsed=()=>SW?Math.min(SW_MAX*60,((SW.pausedAt||Date.now())-SW.start-SW.pausedMs)/1000):0;
+const swEf=()=>(document.querySelector('input[name=crew]:checked')||{}).value==='ef';
+function swReward(sec){
+  const m=Math.floor(sec/60);
+  if(SW.kind==='study'){const per=60/rate(),g=Math.floor(m/per);return {main:'eFootball +'+g+'分',val:g,next:(g+1)*per*60-sec,label:'次の +1分⚽ まで'}}
+  const ef=swEf(),g=choreTimeBonus(m,ef);return {main:'時間ボーナス +'+g+(ef?'分⚽':'pt'),val:g,next:(Math.floor(m/TIME_STEP)+1)*TIME_STEP*60-sec,label:'次の +'+(ef?TIME_MIN+'分⚽':TIME_PT+'pt')+' まで'};
+}
+const hms=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600);return (h?h+':'+pad(Math.floor(s%3600/60)):Math.floor(s/60))+':'+pad(s%60)};
+function swStart(kind){
+  if(SW&&SW.kind!==kind){toast('もう1つのストップウォッチが動いています');$('sw').hidden=false;return}
+  if(!SW){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}SW={kind,start:Date.now(),pausedMs:0,pausedAt:null,lastVal:0};swSave()}
+  swOpen();
+}
+function swOpen(){$('sw').hidden=false;try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}swDraw();clearInterval(swTimer);swTimer=setInterval(swTick,500)}
+function swDraw(){
+  if(!SW)return;const study=SW.kind==='study';
+  $('swBox').innerHTML='<div class="khead"><span class="now-sj" style="background:'+(study?'var(--s-ma)':'var(--s-so)')+'">'+(study?'自主勉':'お手伝い')+'</span><span class="kt">ストップウォッチ</span><button type="button" class="qx" data-swmin="1" aria-label="小さくする">−</button></div>'+
+    '<div class="kboard"><div class="kphase" id="swPhase">'+(SW.pausedAt?'一時停止中':'がんばり中')+'</div><div class="led kclock num" id="swClock">0:00</div>'+
+    '<div class="swreward"><div><span>今のごほうび</span><b id="swGain"></b></div><div><span id="swNextL"></span><b class="num" id="swNext"></b></div></div>'+
+    '<div class="kmsg">'+(study?'1時間で eFootball '+rate()+'分。少しずつ貯まっていくよ。':'お手伝い1つごとのごほうびに、10分ごとのボーナスが足されるよ。')+'</div></div>'+
+    '<div class="row2"><button type="button" class="btn plain" data-swpause="1">'+(SW.pausedAt?'▶ 再開':'⏸ 一時停止')+'</button><button type="button" class="btn plain" data-swstop="1">やめる</button></div>'+
+    '<button type="button" class="btn ball big" data-swdone="1">終わった！ 報告へ</button>';
+  swTick();
+}
+function swTick(){
+  if(!SW)return;const s=swElapsed(),r=swReward(s);
+  if(s>=SW_MAX*60&&!SW.pausedAt){SW.pausedAt=Date.now();swSave();toast('3時間たったので止めました。休けいしよう');swDraw();return}
+  const c=$('swClock');if(!c)return;c.textContent=hms(s);$('swGain').textContent=r.main;$('swNextL').textContent=r.label;$('swNext').textContent=hms(r.next);
+  if(r.val>SW.lastVal){SW.lastVal=r.val;swSave();beep(1);if(!$('sw').hidden)floatAt($('swGain'),'+'+(SW.kind==='study'?'1分⚽':(swEf()?TIME_MIN+'分⚽':TIME_PT+'pt')))}
+}
+function swClose(clear){clearInterval(swTimer);$('sw').hidden=true;if(clear){SW=null;swSave()}}
+document.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.swstart){swStart(b.dataset.swstart);return}
+  if(!SW)return;
+  if(b.dataset.swmin){$('sw').hidden=true;toast('ストップウォッチは動いたままです。「⏱ ストップウォッチで測る」で戻れます');return}
+  if(b.dataset.swpause){if(SW.pausedAt){SW.pausedMs+=Date.now()-SW.pausedAt;SW.pausedAt=null}else SW.pausedAt=Date.now();swSave();swDraw();return}
+  if(b.dataset.swstop){ask('ストップウォッチをやめる？（時間は記録されないよ）',()=>swClose(true));return}
+  if(b.dataset.swdone){const kind=SW.kind,m=Math.max(1,Math.round(swElapsed()/60));swClose(true);
+    const study=kind==='study';$('choreForm').hidden=study;$('extraForm').hidden=!study;$('tabChore').setAttribute('aria-pressed',!study);$('tabExtra').setAttribute('aria-pressed',study);
+    $(study?'exMin':'choreMin').value=m;$('report').scrollIntoView({behavior:'smooth'});
+    toast(fmtMin(m)+'がんばった！ '+(study?'やったこと':'お手伝いの種類')+'を入れて報告してね');return}
+});
+try{const v=JSON.parse(localStorage.getItem(SWKEY)||'null');if(v){SW=v;swOpen()}}catch(e){}
 
 /* ---------- 暗記カード・聞き流し ---------- */
 const answerOf=q=>q.c?q.c[q.a]:(q.n?q.n[0]+(q.u||''):'');
