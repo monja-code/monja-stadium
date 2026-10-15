@@ -197,6 +197,23 @@ form.sf{display:flex;flex-direction:column;gap:10px;padding-top:12px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--board);color:var(--boardink);padding:10px 16px;border-radius:12px;font-weight:800;z-index:55;max-width:calc(100% - 32px);text-align:center}
 .bta{font:inherit;font-size:.8rem;width:100%;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
 #backup .btn{width:100%}
+/* report */
+.fam{font-weight:800;font-size:.9rem;color:var(--s-so)}
+.fam b{font-family:var(--f-display);font-weight:400;font-size:1.3rem}
+.rep-tabs{flex:none;grid-template-columns:1fr 1fr}
+.rep-tabs button[aria-pressed="true"]{color:#fff;background:var(--pitch);box-shadow:none}
+fieldset.chores label{flex:1 1 30%;min-width:96px;font-size:.85rem;padding:4px 6px;text-align:center}
+fieldset.chores input{position:absolute;opacity:0;pointer-events:none}
+.fl.photo input{font-size:.85rem;padding:8px;background:var(--surface2);border:1px dashed var(--line);border-radius:10px}
+.replist{display:flex;flex-direction:column;gap:6px}
+.repitem{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;background:var(--surface2);border-radius:10px;padding:8px 10px}
+.repitem b{white-space:nowrap}
+/* flashcards */
+.fcard{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:20px 16px;min-height:180px;display:flex;flex-direction:column;gap:12px;justify-content:center}
+.fcard .qq{border:0;padding:0;background:none}
+.fans{border-top:2px dashed var(--line);padding-top:12px;font-weight:800;font-size:1.15rem;color:var(--good)}
+.lsnow{font-size:1.1rem;font-weight:800;line-height:1.6;white-space:pre-wrap;min-height:120px}
+.lsstate{font-weight:800;color:var(--pitch);letter-spacing:.08em;font-size:.85rem}
 /* now card */
 .now{margin-top:-4px;background:var(--surface);border:3px solid var(--pitch);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 6px 0 color-mix(in srgb,var(--pitch) 35%,transparent)}
 .now-tag{display:flex;justify-content:space-between;font-size:.75rem;font-weight:800;letter-spacing:.12em;color:var(--pitch)}
@@ -351,12 +368,70 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
     <div class="loading">今日の勉強メニューを読み込んでいます…</div>
   </section>
 
+  <section class="card" id="report" aria-label="報告する">
+    <div class="card-head"><h2>報告する</h2><span class="fam">家族ポイント <b class="num" id="famPt">0</b>pt</span></div>
+    <div class="seg rep-tabs" role="tablist" aria-label="報告の種類">
+      <button type="button" role="tab" id="tabChore" aria-pressed="true" data-rtab="chore">お手伝い</button>
+      <button type="button" role="tab" id="tabExtra" aria-pressed="false" data-rtab="extra">自主勉</button>
+    </div>
+    <form class="sf" id="choreForm" novalidate>
+      <fieldset class="prio chores" id="choreKinds">
+        <legend>やったお手伝い（1回 +10pt、写真つきで +5pt）</legend>
+      </fieldset>
+      <label class="fl" for="choreNote">ひとこと（なくてもOK）
+        <input id="choreNote" type="text" maxlength="40" placeholder="例：もんじゃと30分歩いた">
+      </label>
+      <label class="fl photo" for="chorePhoto">📷 写真をつける（なくてもOK）
+        <input id="chorePhoto" type="file" accept="image/*" capture="environment">
+      </label>
+      <div class="err" id="choreErr" hidden></div>
+      <button class="btn pitch" type="submit">報告する（LINEで送る）</button>
+    </form>
+    <form class="sf" id="extraForm" novalidate hidden>
+      <div class="row2">
+        <label class="fl" for="exSubj">教科
+          <select id="exSubj"><option>数学</option><option>英語</option><option>国語</option><option>理科</option><option>社会</option><option>その他</option></select>
+        </label>
+        <label class="fl" for="exMin">時間
+          <select id="exMin"><option value="15">15分</option><option value="30" selected>30分</option><option value="45">45分</option><option value="60">1時間</option><option value="90">1時間30分</option><option value="120">2時間</option></select>
+        </label>
+      </div>
+      <label class="fl" for="exText">やったこと
+        <input id="exText" type="text" maxlength="40" placeholder="例：二次方程式の問題集 p.20〜23">
+      </label>
+      <label class="fl photo" for="exPhoto">📷 ノートの写真をつける（なくてもOK）
+        <input id="exPhoto" type="file" accept="image/*" capture="environment">
+      </label>
+      <div class="err" id="exErr" hidden></div>
+      <button class="btn pitch" type="submit">報告する（LINEで送る）</button>
+    </form>
+    <div id="repView"></div>
+  </section>
+
   <section class="card" id="stats" aria-label="積み上げ記録">
     <div class="loading">積み上げ記録を読み込んでいます…</div>
   </section>
 
   <section class="card" id="books" aria-label="単元チェック">
     <div class="loading">テスト範囲の単元を読み込んでいます…</div>
+  </section>
+
+  <section class="card" id="cards" aria-label="暗記カード・聞き流し">
+    <h2>暗記カード・聞き流し</h2>
+    <div class="row2">
+      <label class="fl" for="fcSubj">教科
+        <select id="fcSubj"><option value="">全教科</option><option>国語</option><option>数学</option><option>英語</option><option>理科</option><option>社会</option></select>
+      </label>
+      <label class="fl" for="fcScope">範囲
+        <select id="fcScope"><option value="wrong">間違えた問題</option><option value="weak">苦手な単元（✕△・不合格）</option><option value="all">全部の問題</option></select>
+      </label>
+    </div>
+    <div class="muted" id="fcInfo" style="font-size:.85rem"></div>
+    <div class="row2">
+      <button type="button" class="btn pitch" id="fcStart">🃏 カードをめくる</button>
+      <button type="button" class="btn ball" id="fcListen">🎧 聞き流す</button>
+    </div>
+    <div class="note">聞き流しは、スマホの読み上げ機能で「問題 → 少し間 → 答え」の順に流します。もんじゃの散歩中にどうぞ。画面を消すと止まることがあるので、画面はつけたままにしてね。</div>
   </section>
 
   <section class="card" aria-label="テストの点数">
@@ -444,6 +519,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
   </div>
 </div>
 <div class="kick" id="kick" hidden><div class="kbox" id="kickBox" role="dialog" aria-modal="true" aria-label="キックオフタイマー"></div></div>
+<div class="quiz" id="fc" hidden><div class="qbox" id="fcBox" role="dialog" aria-modal="true" aria-label="暗記カード"></div></div>
 <div class="quiz" id="quiz" hidden><div class="qbox" id="quizBox" role="dialog" aria-modal="true" aria-label="確認テスト"></div></div>
 <div class="toast" id="toast" hidden></div>
 
@@ -8559,7 +8635,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
 const SUBJECTS=['国語','数学','英語','理科','社会'];
 const SCOL={国語:'--s-ja',数学:'--s-ma',英語:'--s-en',理科:'--s-sc',社会:'--s-so',全教科:'--s-all',休む:'--s-rest'};
 const PERIODS=['朝','日中','17:00〜','夜'];
-const S={plan:{},done:{},config:null,progress:{},scores:[],rewards:[],catalog:null,exams:[],quiz:{},tests:{},testBonus:[],ready:{}};
+const S={plan:{},done:{},config:null,progress:{},scores:[],rewards:[],catalog:null,exams:[],quiz:{},tests:{},testBonus:[],extra:[],chores:[],famUsed:[],ready:{}};
 let db=null, view=null, offline=false;
 
 const $=id=>document.getElementById(id);
@@ -8596,6 +8672,9 @@ function totals(){
   const used=S.rewards.reduce((a,r)=>a+(Number(r.minutes)||0),0);
   let todayEarn=S.plan[t]?dayEarn(t):0;
   S.testBonus.forEach(b=>{earned+=Number(b.minutes)||0;if(b.id.endsWith('-'+t))todayEarn+=Number(b.minutes)||0});
+  // 自主勉の報告も勉強時間とeFootball時間に入れる
+  S.extra.forEach(e=>{const m=Number(e.minutes)||0,g=Math.round(m/60*rate());allMin+=m;earned+=g;
+    if(e.date===t){todayMin+=m;todayEarn+=g}if(e.date>=ms&&e.date<=ss)weekMin+=m});
   return {todayMin,weekMin,allMin,planMin,earned,used,balance:earned-used,todayEarn};
 }
 function streaks(){
@@ -8865,7 +8944,7 @@ async function finishQuiz(){
   h+='<div class="row2"><button type="button" class="btn plain" data-qretry="1">もう一度</button><button type="button" class="btn pitch" data-qclose="1">閉じる</button></div>';
   $('quizBox').innerHTML=h;
   const prev=testOf(s,id)||{},rec={last:score,total,best:Math.max(prev.best||0,score),n:(prev.n||0)+1,at:new Date().toISOString(),
-    hist:(prev.hist||[]).concat([{d:t,sc:score}]).slice(-10)};
+    hist:(prev.hist||[]).concat([{d:t,sc:score}]).slice(-10),wrong:Q.wrong.map(w=>w.q)};
   const next=JSON.parse(JSON.stringify(S.tests||{}));next[k]=next[k]||{};next[k][id]=rec;S.tests=next;renderBooks();
   try{await db.doc('progress/tests').set(next);if(gotBonus)await db.doc('testbonus/'+bonusId).set({minutes:TEST_BONUS,at:new Date().toISOString()})}catch(e){fail(e)}
 }
@@ -9001,6 +9080,141 @@ function tickKick(force){
   if(b)b.style.width=Math.min(100,(s.el/s.total)*100)+'%';
 }
 
+/* ---------- 報告（お手伝い・自主勉）→ 家族のLINEへ ---------- */
+const CHORES=['皿洗い','洗濯物','風呂そうじ','もんじゃの散歩','料理の手伝い','買い物','部屋のそうじ','ゴミ出し','その他'];
+const CHORE_PT=10,PHOTO_PT=5;
+$('choreKinds').insertAdjacentHTML('beforeend',CHORES.map((c,i)=>'<label><input type="radio" name="chore" value="'+c+'"'+(i===3?' checked':'')+'>'+c+'</label>').join(''));
+const famTotal=()=>S.chores.reduce((a,c)=>a+(Number(c.pts)||0),0)-S.famUsed.reduce((a,u)=>a+(Number(u.pts)||0),0);
+function renderReport(){
+  if(!$('repView'))return;
+  $('famPt').textContent=famTotal();
+  const items=[...S.chores.map(c=>({at:c.at||'',t:'🧹 '+c.kind+(c.note?'（'+c.note+'）':''),r:'+'+c.pts+'pt'})),
+    ...S.extra.map(e=>({at:e.at||'',t:'📘 '+e.subject+' '+(e.text||''),r:fmtMin(e.minutes)})),
+    ...S.famUsed.map(u=>({at:u.at||'',t:'🎁 家族ポイントを使った',r:'−'+u.pts+'pt'}))].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,5);
+  let h='';
+  if(items.length)h+='<div class="replist">'+items.map(i=>'<div class="repitem"><span>'+md(i.at.slice(0,10))+' '+esc(i.t)+'</span><b class="num">'+esc(i.r)+'</b></div>').join('')+'</div>';
+  else h+='<div class="note">まだ報告はありません。お手伝いや自主勉をしたら、ここから家族のLINEに送ろう。</div>';
+  h+='<div class="row2"><button type="button" class="btn plain" data-famuse="50"'+(famTotal()<50?' disabled':'')+'>50pt 使う</button><button type="button" class="btn plain" data-famuse="100"'+(famTotal()<100?' disabled':'')+'>100pt 使う</button></div>'+
+    '<div class="muted" style="font-size:.78rem">家族ポイントを何と交換するかは家族で決めてね。</div>';
+  $('repView').innerHTML=h;
+}
+document.querySelectorAll('[data-rtab]').forEach(b=>b.addEventListener('click',()=>{const c=b.dataset.rtab==='chore';
+  $('choreForm').hidden=!c;$('extraForm').hidden=c;$('tabChore').setAttribute('aria-pressed',c);$('tabExtra').setAttribute('aria-pressed',!c)}));
+async function shareReport(text,file){
+  try{
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({text,files:[file]});return 'shared'}
+    if(navigator.share){await navigator.share({text});return 'shared'}
+  }catch(e){if(e&&e.name==='AbortError')return 'cancel'}
+  try{await navigator.clipboard.writeText(text);return 'copied'}catch(e){return 'none'}
+}
+const shareMsg={shared:'報告しました！',cancel:'送るのをやめました。記録は残っています',copied:'報告の文章をコピーしました。LINEに貼って送ってね',none:'記録しました。LINEには自分で伝えてね'};
+$('choreForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(!db)return;
+  const kind=(document.querySelector('input[name=chore]:checked')||{}).value,note=$('choreNote').value.trim(),file=$('chorePhoto').files[0]||null,err=$('choreErr');
+  if(!kind){err.textContent='やったお手伝いを選んでね。';err.hidden=false;return}
+  if(kind==='その他'&&!note){err.textContent='「その他」のときは、ひとことに内容を書いてね。';err.hidden=false;return}
+  err.hidden=true;
+  const pts=CHORE_PT+(file?PHOTO_PT:0),t=today();
+  const text='【もんじゃスタジアム】お手伝い報告\n'+md(t)+' '+(kind==='その他'?note:kind)+' をしました！'+(note&&kind!=='その他'?'\n'+note:'')+'\n家族ポイント +'+pts+'pt（合計 '+(famTotal()+pts)+'pt）';
+  const r=await shareReport(text,file);
+  try{await db.collection('chores').add({date:t,kind:kind==='その他'?note:kind,note:kind==='その他'?'':note,pts,photo:!!file,at:new Date().toISOString()});
+    $('choreForm').reset();document.querySelectorAll('input[name=chore]')[3].checked=true;toast(shareMsg[r]+'（+'+pts+'pt）')}catch(e){fail(e)}
+});
+$('extraForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(!db)return;
+  const subject=$('exSubj').value,minutes=Number($('exMin').value),text=$('exText').value.trim(),file=$('exPhoto').files[0]||null,err=$('exErr');
+  if(!text){err.textContent='やったことを書いてね。';err.hidden=false;return}
+  err.hidden=true;
+  const t=today(),g=Math.round(minutes/60*rate()),T=totals();
+  const msg='【もんじゃスタジアム】自主勉報告\n'+md(t)+' '+subject+'「'+text+'」'+fmtMin(minutes)+'\n今日の勉強 '+fmtMin(T.todayMin+minutes)+'・eFootball +'+g+'分';
+  const r=await shareReport(msg,file);
+  try{await db.collection('extra').add({date:t,subject,minutes,text,photo:!!file,at:new Date().toISOString()});
+    $('extraForm').reset();$('exMin').value='30';toast(shareMsg[r]+'（eFootball +'+g+'分）')}catch(e){fail(e)}
+});
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-famuse]');if(!b||!db)return;const n=Number(b.dataset.famuse);
+  ask('家族ポイントを '+n+'pt 使う？',async()=>{try{await db.collection('famused').add({pts:n,at:new Date().toISOString()});toast(n+'pt 使いました')}catch(e){fail(e)}})});
+
+/* ---------- 暗記カード・聞き流し ---------- */
+const answerOf=q=>q.c?q.c[q.a]:(q.n?q.n[0]+(q.u||''):'');
+function cardPool(){
+  const subj=$('fcSubj').value,scope=$('fcScope').value,U=(S.units&&S.units.subjects)||{},out=[];
+  SUBJECTS.filter(s=>!subj||s===subj).forEach(s=>(U[s]||[]).forEach(u=>{
+    const qs=quizOf(s,u.id);if(!qs)return;const t=testOf(s,u.id),c=confOf(s,u.id);
+    let pick=[];
+    if(scope==='all')pick=qs;
+    else if(scope==='wrong'){const w=new Set((t&&t.wrong)||[]);pick=qs.filter(q=>w.has(q.q))}
+    else if(c===0||c===1||(t&&t.last/t.total<PASS))pick=qs;
+    pick.forEach(q=>out.push({s,unit:u.name,q:q.q,a:answerOf(q),e:q.e||''}))}));
+  return out;
+}
+function renderCardsHome(){
+  if(!$('fcInfo')||!S.units)return;
+  const n=cardPool().length,scope=$('fcScope').value;
+  $('fcInfo').textContent=n?'対象の問題：'+n+'問（1回に最大30問）':(scope==='wrong'?'間違えた問題はまだありません。確認テストを受けると、ここに貯まります。':scope==='weak'?'苦手な単元はまだありません。単元チェックで ✕ か △ を押すと、ここに出ます。':'問題がありません。');
+  $('fcStart').disabled=$('fcListen').disabled=!n;
+}
+$('fcSubj').addEventListener('change',renderCardsHome);$('fcScope').addEventListener('change',renderCardsHome);
+let FC=null;
+function openFc(){$('fc').hidden=false;document.body.style.overflow='hidden'}
+function closeFc(){stopListen();$('fc').hidden=true;document.body.style.overflow='';FC=null}
+$('fcStart').addEventListener('click',()=>{const p=shuffle(cardPool()).slice(0,30);if(!p.length)return;FC={mode:'card',items:p,i:0,ok:0,again:0,show:false};openFc();drawFc()});
+function drawFc(){
+  const x=FC.items[FC.i];let h='<div class="qhead"><span>暗記カード</span><span class="num">'+Math.min(FC.i+1,FC.items.length)+' / '+FC.items.length+'</span><button type="button" class="qx" data-fcclose="1" aria-label="閉じる">×</button></div>';
+  if(!x){h+='<div class="qres ok"><b>おつかれ！</b><div>わかった '+FC.ok+'枚・もう一回 '+FC.again+'回</div></div><button type="button" class="btn pitch" data-fcclose="1">閉じる</button>';$('fcBox').innerHTML=h;return}
+  h+='<div class="fcard"><div class="muted" style="font-size:.8rem;color:'+col(x.s)+'">'+esc(x.s)+'・'+esc(x.unit)+'</div><div class="qq">'+esc(x.q)+'</div>'+
+    (FC.show?'<div class="fans">答え：'+esc(x.a)+'</div>'+(x.e?'<div class="qe">'+esc(x.e)+'</div>':''):'')+'</div>';
+  h+=FC.show?'<div class="row2"><button type="button" class="btn plain" data-fcagain="1">もう一回</button><button type="button" class="btn pitch" data-fcok="1">わかった ✓</button></div>'
+    :'<button type="button" class="btn ball big" data-fcshow="1">答えを見る</button>';
+  $('fcBox').innerHTML=h;
+}
+/* 聞き流し：問題 → 間 → 答え。英文は英語の声で読む */
+let LS=null;
+const isEn=s=>{const a=(s.match(/[A-Za-z]/g)||[]).length;return a>s.replace(/\s/g,'').length*0.5};
+const speakable=s=>String(s).replace(/\(\s*\)/g,'空欄').replace(/（\s*）/g,'空欄').replace(/\n/g,'。');
+function sayText(text,lang,rate){return new Promise(res=>{try{const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=rate;
+  const v=speechSynthesis.getVoices().find(v=>v.lang&&v.lang.replace('_','-').startsWith(lang.slice(0,2)));if(v)u.voice=v;
+  u.onend=u.onerror=()=>res();speechSynthesis.speak(u)}catch(e){res()}})}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+$('fcListen').addEventListener('click',()=>{
+  if(!('speechSynthesis' in window)){toast('このスマホでは読み上げが使えません');return}
+  const p=shuffle(cardPool()).slice(0,30);if(!p.length)return;
+  LS={items:p,i:0,run:true,rate:1,gen:0};FC={mode:'listen'};openFc();try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}
+  drawListen();playListen();
+});
+function drawListen(){
+  const x=LS.items[LS.i];
+  let h='<div class="qhead"><span>🎧 聞き流し</span><span class="num">'+Math.min(LS.i+1,LS.items.length)+' / '+LS.items.length+'</span><button type="button" class="qx" data-fcclose="1" aria-label="閉じる">×</button></div>';
+  h+='<div class="fcard"><div class="lsstate" id="lsState">'+(LS.run?'再生中':'一時停止中')+'</div>'+(x?'<div class="muted" style="font-size:.8rem;color:'+col(x.s)+'">'+esc(x.s)+'・'+esc(x.unit)+'</div><div class="lsnow">'+esc(x.q)+'</div><div class="fans" id="lsAns" hidden>答え：'+esc(x.a)+'</div>':'<div class="lsnow">全部聞き終わりました。おつかれ！</div>')+'</div>';
+  h+='<div class="row2"><button type="button" class="btn plain" data-lspause="1">'+(LS.run?'⏸ 一時停止':'▶ 再生')+'</button><button type="button" class="btn plain" data-lsnext="1">⏭ 次へ</button></div>'+
+    '<div class="seg" role="group" aria-label="読む速さ">'+[0.8,1,1.2].map(r=>'<button type="button" data-lsrate="'+r+'" aria-pressed="'+(LS.rate===r)+'">'+(r===1?'ふつう':r<1?'ゆっくり':'はやめ')+'</button>').join('')+'</div>';
+  $('fcBox').innerHTML=h;
+}
+async function playListen(){
+  const gen=++LS.gen;
+  while(LS&&LS.run&&gen===LS.gen&&LS.i<LS.items.length){
+    const x=LS.items[LS.i];drawListen();
+    await sayText(speakable(x.q),isEn(x.q)?'en-US':'ja-JP',LS.rate);if(!LS||gen!==LS.gen)return;
+    await wait(2500);if(!LS||gen!==LS.gen)return;
+    const a=$('lsAns');if(a)a.hidden=false;
+    const filled=/\(\s*\)/.test(x.q)&&isEn(x.q)?x.q.split('\n').pop().replace(/\(\s*\)/,x.a):null;
+    await sayText(filled?filled:'答え。'+speakable(x.a),filled||isEn(x.a)?'en-US':'ja-JP',LS.rate);if(!LS||gen!==LS.gen)return;
+    await wait(1500);if(!LS||gen!==LS.gen)return;
+    LS.i++;
+  }
+  if(LS&&LS.i>=LS.items.length){LS.run=false;drawListen()}
+}
+function stopListen(){try{speechSynthesis.cancel()}catch(e){}if(LS){LS.gen++;LS=null}}
+document.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b||!FC)return;
+  if(b.dataset.fcclose){closeFc();return}
+  if(b.dataset.fcshow){FC.show=true;drawFc();return}
+  if(b.dataset.fcok){FC.ok++;FC.i++;FC.show=false;drawFc();return}
+  if(b.dataset.fcagain){FC.again++;FC.items.push(FC.items[FC.i]);FC.i++;FC.show=false;drawFc();return}
+  if(!LS)return;
+  if(b.dataset.lspause){if(LS.run){LS.run=false;LS.gen++;try{speechSynthesis.cancel()}catch(e){}drawListen()}else{LS.run=true;playListen()}return}
+  if(b.dataset.lsnext){try{speechSynthesis.cancel()}catch(e){}LS.i=Math.min(LS.i+1,LS.items.length);if(LS.run)playListen();else drawListen();return}
+  if(b.dataset.lsrate){LS.rate=Number(b.dataset.lsrate);drawListen();return}
+});
+
 /* ---------- render all ---------- */
 function render(){
   if(offline)return;
@@ -9010,6 +9224,7 @@ function render(){
   if(S.ready.plan&&S.ready.done&&S.ready.config&&S.ready.rewards){renderBank();renderStats()}
   if(S.ready.plan&&S.ready.done&&S.ready.config){renderToday();renderNow()}
   if(S.ready.units&&S.ready.unitState)renderBooks();
+  renderReport();renderCardsHome();
   if(S.ready.scores&&S.ready.config)renderScores();
 }
 
@@ -9137,6 +9352,8 @@ function weeklyReport(){
     '計画をやり切った日：'+k.cur+'日連続（最高 '+k.best+'日）',
     '確認テスト：今週 '+tn+'回・合格 '+tp+'回'+(passed.length?'（'+[...new Set(passed)].slice(0,5).join('、')+'）':''),
     'eFootball：貯金 '+T.balance+'分（今週使った '+used+'分）',
+    '自主勉：今週 '+fmtMin(S.extra.filter(e=>e.date>=ms&&e.date<=ss).reduce((a,e)=>a+(Number(e.minutes)||0),0)),
+    'お手伝い：今週 '+S.chores.filter(c=>c.date>=ms&&c.date<=ss).length+'回（家族ポイント 合計 '+famTotal()+'pt）',
     warns.length?'⚠ 思い込み注意：'+warns.join('、'):'⚠ 思い込み注意：なし'].join('\n');
 }
 function copyText(text,label){
@@ -9171,6 +9388,9 @@ function onErr(){toast('記録の読み込みが止まりました。ページ�
   db.doc('catalog/exams').onSnapshot(s=>{S.catalog=s.exists?s.data():{types:[],schools:[]};S.ready.catalog=true;renderPlanForm();render()},onErr);
   db.collection('exams').onSnapshot(s=>{S.exams=s.docs.map(d=>({id:d.id,...d.data()}));S.ready.exams=true;render()},onErr);
   db.collection('rewards').onSnapshot(s=>{S.rewards=s.docs.map(d=>d.data());S.ready.rewards=true;render()},onErr);
+  db.collection('extra').onSnapshot(s=>{S.extra=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
+  db.collection('chores').onSnapshot(s=>{S.chores=s.docs.map(d=>({id:d.id,...d.data()}));renderReport()},onErr);
+  db.collection('famused').onSnapshot(s=>{S.famUsed=s.docs.map(d=>({id:d.id,...d.data()}));renderReport()},onErr);
   // 日付が変わったら表示を更新
   let lastDay=today();setInterval(()=>{if(today()!==lastDay){lastDay=today();view=null;render()}else if(S.ready.plan&&S.ready.done)renderNow()},60000);
   restoreKick();
