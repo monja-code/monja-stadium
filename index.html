@@ -376,7 +376,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
     </div>
     <form class="sf" id="choreForm" novalidate>
       <fieldset class="prio chores" id="choreKinds">
-        <legend>やったお手伝い（1回 +10pt、写真つきで +5pt）</legend>
+        <legend>やったお手伝い（いくつでも選べる。1つ +10pt、写真つきで +5pt）</legend>
       </fieldset>
       <label class="fl" for="choreNote">ひとこと（なくてもOK）
         <input id="choreNote" type="text" maxlength="40" placeholder="例：もんじゃと30分歩いた">
@@ -9083,7 +9083,7 @@ function tickKick(force){
 /* ---------- 報告（お手伝い・自主勉）→ 家族のLINEへ ---------- */
 const CHORES=['皿洗い','洗濯物','風呂そうじ','もんじゃの散歩','料理の手伝い','買い物','部屋のそうじ','ゴミ出し','その他'];
 const CHORE_PT=10,PHOTO_PT=5;
-$('choreKinds').insertAdjacentHTML('beforeend',CHORES.map((c,i)=>'<label><input type="radio" name="chore" value="'+c+'"'+(i===3?' checked':'')+'>'+c+'</label>').join(''));
+$('choreKinds').insertAdjacentHTML('beforeend',CHORES.map(c=>'<label><input type="checkbox" name="chore" value="'+c+'">'+c+'</label>').join(''));
 const famTotal=()=>S.chores.reduce((a,c)=>a+(Number(c.pts)||0),0)-S.famUsed.reduce((a,u)=>a+(Number(u.pts)||0),0);
 function renderReport(){
   if(!$('repView'))return;
@@ -9110,15 +9110,19 @@ async function shareReport(text,file){
 const shareMsg={shared:'報告しました！',cancel:'送るのをやめました。記録は残っています',copied:'報告の文章をコピーしました。LINEに貼って送ってね',none:'記録しました。LINEには自分で伝えてね'};
 $('choreForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(!db)return;
-  const kind=(document.querySelector('input[name=chore]:checked')||{}).value,note=$('choreNote').value.trim(),file=$('chorePhoto').files[0]||null,err=$('choreErr');
-  if(!kind){err.textContent='やったお手伝いを選んでね。';err.hidden=false;return}
-  if(kind==='その他'&&!note){err.textContent='「その他」のときは、ひとことに内容を書いてね。';err.hidden=false;return}
+  // 複数選べる。1つにつき CHORE_PT、写真つきは1回の報告につき +PHOTO_PT
+  const picked=[...document.querySelectorAll('input[name=chore]:checked')].map(i=>i.value),note=$('choreNote').value.trim(),file=$('chorePhoto').files[0]||null,err=$('choreErr');
+  if(!picked.length){err.textContent='やったお手伝いを選んでね（いくつでも選べるよ）。';err.hidden=false;return}
+  const other=picked.includes('その他');
+  if(other&&!note){err.textContent='「その他」を選んだときは、ひとことに内容を書いてね。';err.hidden=false;return}
   err.hidden=true;
-  const pts=CHORE_PT+(file?PHOTO_PT:0),t=today();
-  const text='【もんじゃスタジアム】お手伝い報告\n'+md(t)+' '+(kind==='その他'?note:kind)+' をしました！'+(note&&kind!=='その他'?'\n'+note:'')+'\n家族ポイント +'+pts+'pt（合計 '+(famTotal()+pts)+'pt）';
+  const kinds=picked.map(k=>k==='その他'?note:k),pts=CHORE_PT*picked.length+(file?PHOTO_PT:0),t=today();
+  const memo=other?'':note;
+  const text='【もんじゃスタジアム】お手伝い報告\n'+md(t)+' '+kinds.join('・')+' をしました！'+(memo?'\n'+memo:'')+
+    '\n家族ポイント +'+pts+'pt'+(picked.length>1||file?'（'+picked.length+'つ×'+CHORE_PT+'pt'+(file?'＋写真'+PHOTO_PT+'pt':'')+'）':'')+'\n合計 '+(famTotal()+pts)+'pt';
   const r=await shareReport(text,file);
-  try{await db.collection('chores').add({date:t,kind:kind==='その他'?note:kind,note:kind==='その他'?'':note,pts,photo:!!file,at:new Date().toISOString()});
-    $('choreForm').reset();document.querySelectorAll('input[name=chore]')[3].checked=true;toast(shareMsg[r]+'（+'+pts+'pt）')}catch(e){fail(e)}
+  try{await db.collection('chores').add({date:t,kind:kinds.join('・'),kinds,count:picked.length,note:memo,pts,photo:!!file,at:new Date().toISOString()});
+    $('choreForm').reset();toast(shareMsg[r]+'（+'+pts+'pt）')}catch(e){fail(e)}
 });
 $('extraForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(!db)return;
@@ -9353,7 +9357,7 @@ function weeklyReport(){
     '確認テスト：今週 '+tn+'回・合格 '+tp+'回'+(passed.length?'（'+[...new Set(passed)].slice(0,5).join('、')+'）':''),
     'eFootball：貯金 '+T.balance+'分（今週使った '+used+'分）',
     '自主勉：今週 '+fmtMin(S.extra.filter(e=>e.date>=ms&&e.date<=ss).reduce((a,e)=>a+(Number(e.minutes)||0),0)),
-    'お手伝い：今週 '+S.chores.filter(c=>c.date>=ms&&c.date<=ss).length+'回（家族ポイント 合計 '+famTotal()+'pt）',
+    'お手伝い：今週 '+S.chores.filter(c=>c.date>=ms&&c.date<=ss).reduce((a,c)=>a+(Number(c.count)||1),0)+'つ（家族ポイント 合計 '+famTotal()+'pt）',
     warns.length?'⚠ 思い込み注意：'+warns.join('、'):'⚠ 思い込み注意：なし'].join('\n');
 }
 function copyText(text,label){
