@@ -197,6 +197,26 @@ form.sf{display:flex;flex-direction:column;gap:10px;padding-top:12px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--board);color:var(--boardink);padding:10px 16px;border-radius:12px;font-weight:800;z-index:55;max-width:calc(100% - 32px);text-align:center}
 .bta{font:inherit;font-size:.8rem;width:100%;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
 #backup .btn{width:100%}
+/* calendar */
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calgrid .wd{font-size:.68rem;font-weight:800;text-align:center;color:var(--muted)}
+.calgrid .wd.sun{color:var(--bad)}.calgrid .wd.sat{color:var(--s-ma)}
+.cd{aspect-ratio:1/1;max-width:100%;min-height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:.85rem;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:0}
+.cd.out{opacity:.35}
+.cd.today{box-shadow:0 0 0 2px var(--ball)}
+.cd[aria-pressed="true"]{background:var(--pitch);color:var(--chalk);border-color:var(--pitch)}
+.cd .dots{display:flex;gap:3px;height:6px}
+.cd .dots i{width:6px;height:6px;border-radius:50%;display:block}
+.calday{display:flex;flex-direction:column;gap:6px}
+.calday-h{font-family:var(--f-display);font-size:1.1rem}
+.tl{display:grid;grid-template-columns:96px 1fr auto;gap:8px;align-items:center;font-size:.88rem;border-radius:10px;padding:8px 10px;background:var(--surface2)}
+.tl .tm{font-weight:800;font-variant-numeric:tabular-nums}
+.tl.ev{background:color-mix(in srgb,var(--s-so) 14%,var(--surface));border-left:4px solid var(--s-so)}
+.tl.st{border-left:4px solid var(--sc)}
+.tl.done{opacity:.55;text-decoration:line-through}
+.tl .x{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:.78rem;cursor:pointer;padding:6px}
+#evKinds label{flex:1 1 22%;min-width:76px;font-size:.82rem}
+#evKinds input{position:absolute;opacity:0;pointer-events:none}
 /* report */
 .fam{font-weight:800;font-size:.9rem;color:var(--s-so)}
 .fam b{font-family:var(--f-display);font-weight:400;font-size:1.3rem}
@@ -375,6 +395,45 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
 
   <section class="card" id="today" aria-label="今日のメニュー">
     <div class="loading">今日の勉強メニューを読み込んでいます…</div>
+  </section>
+
+  <section class="card" id="cal" aria-label="カレンダー">
+    <div class="card-head"><h2>カレンダー</h2><span class="muted" style="font-size:.78rem">予定を入れると、勉強は空き時間に自動で並ぶ</span></div>
+    <div class="daynav">
+      <button class="navbtn" type="button" data-calm="-1" aria-label="前の月">‹</button>
+      <div class="daytitle"><div class="d" id="calTitle"></div></div>
+      <button class="navbtn" type="button" data-calm="1" aria-label="次の月">›</button>
+    </div>
+    <div class="calgrid" id="calGrid"></div>
+    <div class="legend"><span><i style="background:var(--good);border-color:var(--good)"></i>勉強の計画</span><span><i style="background:var(--s-so);border-color:var(--s-so)"></i>予定</span></div>
+    <div id="calDay"></div>
+    <details id="evBox">
+      <summary>＋ 予定を入れる</summary>
+      <form class="sf" id="evForm" novalidate>
+        <fieldset class="prio" id="evKinds">
+          <legend>種類</legend>
+          <label><input type="radio" name="evk" value="サッカー" checked>⚽ サッカー</label>
+          <label><input type="radio" name="evk" value="学校">🏫 学校</label>
+          <label><input type="radio" name="evk" value="家族">🏠 家族</label>
+          <label><input type="radio" name="evk" value="その他">📌 その他</label>
+        </fieldset>
+        <label class="fl" for="evTitle">内容（なくてもOK）
+          <input id="evTitle" type="text" maxlength="30" placeholder="例：練習試合（〇〇グラウンド）">
+        </label>
+        <div class="row2">
+          <label class="fl" for="evDate">日付<input id="evDate" type="date"></label>
+          <label class="fl" for="evRep">くり返し
+            <select id="evRep"><option value="1">1回だけ</option><option value="4">毎週（4週分）</option><option value="8">毎週（8週分）</option></select>
+          </label>
+        </div>
+        <div class="row2">
+          <label class="fl" for="evStart">はじまり<input id="evStart" type="time" value="09:00"></label>
+          <label class="fl" for="evEnd">おわり<input id="evEnd" type="time" value="12:00"></label>
+        </div>
+        <div class="err" id="evErr" hidden></div>
+        <button class="btn pitch" type="submit">予定を入れる</button>
+      </form>
+    </details>
   </section>
 
   <section class="card" id="report" aria-label="報告する">
@@ -1241,7 +1300,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
       "英語": 80
     }
   }
-},"exams/seiseiko":{
+},"events/2026-10-17-soccer":{ "date": "2026-10-17", "start": "11:00", "end": "17:00", "kind": "サッカー", "title": "サッカー", "at": "2026-10-17T00:00:00.000Z" },"exams/seiseiko":{
   "createdAt": "2026-10-13T13:40:00.000Z",
   "dates": {},
   "dept": "普通科",
@@ -8752,7 +8811,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
 const SUBJECTS=['国語','数学','英語','理科','社会'];
 const SCOL={国語:'--s-ja',数学:'--s-ma',英語:'--s-en',理科:'--s-sc',社会:'--s-so',全教科:'--s-all',休む:'--s-rest'};
 const PERIODS=['朝','日中','17:00〜','夜'];
-const S={plan:{},done:{},config:null,progress:{},scores:[],rewards:[],catalog:null,exams:[],quiz:{},tests:{},testBonus:[],extra:[],chores:[],famUsed:[],ready:{}};
+const S={plan:{},done:{},config:null,progress:{},scores:[],rewards:[],catalog:null,exams:[],quiz:{},tests:{},testBonus:[],extra:[],chores:[],famUsed:[],events:[],ready:{}};
 let db=null, view=null, offline=false;
 
 const $=id=>document.getElementById(id);
@@ -8771,7 +8830,39 @@ const col=s=>'var('+(SCOL[s]||'--s-all')+')';
 const cfg=()=>S.config||{};
 const rate=()=>Number(cfg().soccerPerHour ?? 10);
 const bonus=()=>Number(cfg().dayBonus ?? 10);
-const slotsOf=d=>(S.plan[d]&&S.plan[d].slots)||[];
+const rawSlots=d=>(S.plan[d]&&S.plan[d].slots)||[];
+/* カレンダーの予定をよけて、勉強のコマに時刻を割り当てる。
+   時刻がぴったり決まっていて予定と重ならないコマはそのまま。
+   「17:00〜19:00」のような枠のコマは枠の中で順に並べ、
+   時刻のないコマ・予定と重なるコマは、その日の空き時間に前から詰める。 */
+const EV_PRE=30,EV_BUF=30,GAP=10;
+const toMin=s=>{const m=/^(\d{1,2}):(\d{2})/.exec(s||'');return m?+m[1]*60+ +m[2]:null};
+const eventsOn=d=>(S.events||[]).filter(e=>e.date===d);
+// 勉強に使える時間帯（分）。土日は昼食・夕食をよける。平日は朝と放課後。サッカー練習日（火水木）の夜は練習から帰ったあとだけ
+function dayWindows(d){const w=parse(d).getDay(),p=S.plan[d]||{};
+  if(w===0||w===6)return [[480,720],[780,1080],[1140,1290]];
+  return p.soccer?[[400,460],[1020,1090],[1290,1320]]:[[400,460],[1020,1140],[1200,1320]]}
+const periodOf=m=>m<660?'朝':m<1020?'日中':m<1170?'17:00〜':'夜';
+const fmtWin=(s,e)=>Math.floor(s/60)+':'+pad(s%60)+'〜'+Math.floor(e/60)+':'+pad(e%60);
+function scheduleDay(d){
+  const raw=rawSlots(d);if(!raw.length)return raw;
+  const evs=eventsOn(d).map(e=>({s:toMin(e.start),e:toMin(e.end)})).filter(v=>v.s!=null&&v.e!=null&&v.e>v.s);
+  const busy=evs.map(v=>({s:v.s-EV_PRE,e:v.e+EV_BUF})),hit=(s,e)=>busy.find(b=>s<b.e&&b.s<e);
+  const res={},flex=[],inWin=[];
+  raw.forEach(x=>{const m=/(\d{1,2}):(\d{2})\s*〜\s*(\d{1,2}):(\d{2})/.exec(x.time||''),len=Number(x.minutes)||30;
+    if(!m){flex.push(x);return}
+    const s=+m[1]*60+ +m[2],e=+m[3]*60+ +m[4];
+    if(e-s<=len+5){if(!evs.some(v=>s<v.e&&v.s<e)){res[x.id]={...x};busy.push({s,e:e+GAP})}else flex.push(x)}
+    else inWin.push({x,s,e,len})});
+  inWin.forEach(({x,s,e,len})=>{let t=s,c;while(t+len<=e&&(c=hit(t,t+len)))t=c.e;
+    if(t+len<=e){res[x.id]={...x,time:fmtWin(t,t+len)};busy.push({s:t,e:t+len+GAP})}else flex.push(x)});
+  flex.forEach(x=>{const len=Number(x.minutes)||30;let at=null;
+    for(const [ws,we] of dayWindows(d)){let t=ws,c;while(t+len<=we&&(c=hit(t,t+len)))t=c.e;if(t+len<=we){at=t;break}}
+    if(at==null){res[x.id]={...x,time:'',auto:true,noroom:true};return}
+    busy.push({s:at,e:at+len+GAP});res[x.id]={...x,time:fmtWin(at,at+len),auto:true,period:periodOf(at)}});
+  return raw.map(x=>res[x.id]).sort((a,b)=>(toMin(a.time)??9999)-(toMin(b.time)??9999));
+}
+const slotsOf=d=>scheduleDay(d);
 const doneMap=d=>(S.done[d]&&S.done[d].slots)||{};
 const isDone=(d,id)=>!!doneMap(d)[id];
 const earnOf=slot=>Math.round((Number(slot.minutes)||0)/60*rate());
@@ -8939,10 +9030,11 @@ function renderToday(){
   const order=PERIODS.filter(pp=>slots.some(x=>x.period===pp)).concat([...new Set(slots.map(x=>x.period))].filter(pp=>!PERIODS.includes(pp)));
   order.forEach(pp=>{
     const ss=slots.filter(x=>x.period===pp);
-    h+='<div class="period"><div class="period-h"><span>'+esc(pp)+'</span><span>'+esc(ss[0].time||'')+'</span></div>';
+    h+='<div class="period"><div class="period-h"><span>'+esc(pp)+'</span></div>';
     ss.forEach(x=>{const d=isDone(view,x.id);
       h+='<button class="slot" type="button" style="--sc:'+col(x.subject)+'" data-slot="'+esc(x.id)+'" aria-pressed="'+d+'"'+(future?' disabled':'')+'>'+
-        '<span class="bar"></span><span><span class="t">'+esc(x.title)+'</span><span class="m"><span class="sj">'+esc(x.subject)+'</span>'+
+        '<span class="bar"></span><span><span class="t">'+esc(x.title)+'</span><span class="m">'+(x.time&&/\d:\d\d/.test(x.time)?'<span class="num">'+esc(x.time)+'</span>':'')+
+        (x.auto?(x.noroom?'<span class="chip ghost" style="color:var(--bad)">空き時間が足りない</span>':'<span class="chip sub">自動</span>'):'')+'<span class="sj">'+esc(x.subject)+'</span>'+
         (x.minutes?'<span>'+fmtMin(x.minutes)+'</span>':'')+(earnOf(x)?'<span class="earn">+'+earnOf(x)+'分⚽</span>':'')+'</span></span>'+
         '<span class="check" aria-hidden="true">✓</span></button>'});
     h+='</div>'});
@@ -9316,6 +9408,63 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b
 });
 try{const v=JSON.parse(localStorage.getItem(SWKEY)||'null');if(v){SW=v;swOpen()}}catch(e){}
 
+/* ---------- カレンダー（予定を入れると、勉強のコマは scheduleDay が空き時間に並べ直す） ---------- */
+const EVICON={サッカー:'⚽',学校:'🏫',家族:'🏠',その他:'📌'};
+let calMonth=(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1)})(),calSel=today();
+function renderCal(){
+  if(!$('calGrid'))return;
+  const y=calMonth.getFullYear(),mo=calMonth.getMonth(),t=today();
+  $('calTitle').textContent=y+'年'+(mo+1)+'月';
+  const first=new Date(y,mo,1),start=new Date(first);start.setDate(1-first.getDay());
+  let h='日月火水木金土'.split('').map((w,i)=>'<div class="wd'+(i===0?' sun':i===6?' sat':'')+'">'+w+'</div>').join('');
+  for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const k=ymd(d);
+    if(i>=35&&d.getMonth()!==mo)break;
+    const hasPlan=rawSlots(k).length>0,hasEv=eventsOn(k).length>0,comp=hasPlan&&dayComplete(k);
+    h+='<button type="button" class="cd'+(d.getMonth()!==mo?' out':'')+(k===t?' today':'')+'" data-cald="'+k+'" aria-pressed="'+(k===calSel)+'" aria-label="'+md(k)+'">'+
+      d.getDate()+(comp?'✓':'')+'<span class="dots">'+(hasPlan?'<i style="background:var(--good)"></i>':'')+(hasEv?'<i style="background:var(--s-so)"></i>':'')+'</span></button>'}
+  $('calGrid').innerHTML=h;
+  renderCalDay();
+}
+function dayItems(d){
+  const ev=eventsOn(d).map(e=>({k:'ev',s:toMin(e.start),e,label:(EVICON[e.kind]||'📌')+' '+(e.title||e.kind),tm:fmtWin(toMin(e.start),toMin(e.end))}));
+  const st=slotsOf(d).map(x=>({k:'st',s:toMin(x.time),x,label:x.subject+'　'+x.title,tm:x.noroom?'時間なし':(x.time||'時間未定')}));
+  return ev.concat(st).sort((a,b)=>(a.s??9999)-(b.s??9999));
+}
+function renderCalDay(){
+  const d=calSel,items=dayItems(d),noroom=slotsOf(d).filter(x=>x.noroom);
+  let h='<div class="calday"><div class="calday-h">'+md(d)+(d===today()?'（今日）':'')+'</div>';
+  if(!items.length)h+='<div class="note">この日は予定も勉強の計画もありません。下の「＋ 予定を入れる」から入れられます。</div>';
+  items.forEach(i=>{
+    if(i.k==='ev')h+='<div class="tl ev"><span class="tm">'+esc(i.tm)+'</span><span>'+esc(i.label)+'</span><button type="button" class="x" data-evdel="'+esc(i.e.id)+'">消す</button></div>';
+    else h+='<div class="tl st'+(isDone(d,i.x.id)?' done':'')+'" style="--sc:'+col(i.x.subject)+'"><span class="tm">'+esc(i.tm)+'</span><span>'+esc(i.label)+'</span>'+(i.x.auto&&!i.x.noroom?'<span class="chip sub">自動</span>':'<span></span>')+'</div>'});
+  if(noroom.length)h+='<div class="warn">予定が多くて、'+noroom.map(x=>esc(x.subject+' '+x.title)).join('・')+' を入れる空き時間がありません。お母さんに相談しよう。</div>';
+  if(items.length)h+='<button type="button" class="btn plain" data-calshare="1">この日の予定をLINEで送る</button>';
+  $('calDay').innerHTML=h+'</div>';
+}
+$('evDate').value=today();
+document.addEventListener('click',async ev=>{const b=ev.target.closest('button');if(!b||!db)return;
+  if(b.dataset.calm){calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+Number(b.dataset.calm),1);renderCal();return}
+  if(b.dataset.cald){calSel=b.dataset.cald;$('evDate').value=calSel;renderCal();return}
+  if(b.dataset.evdel){const e=(S.events||[]).find(x=>x.id===b.dataset.evdel);if(!e)return;
+    ask(md(e.date)+' '+fmtWin(toMin(e.start),toMin(e.end))+' の「'+(e.title||e.kind)+'」を消す？',async()=>{try{await db.doc('events/'+e.id).delete();toast('予定を消しました')}catch(er){fail(er)}});return}
+  if(b.dataset.calshare){const d=calSel;
+    const text='【もんじゃスタジアム】'+md(d)+'の予定\n'+dayItems(d).map(i=>i.tm+'　'+(i.k==='ev'?i.label:'📘 '+i.label)).join('\n');
+    const r=await shareReport(text,null);toast(shareMsg[r]);return}
+});
+$('evForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(!db)return;
+  const kind=(document.querySelector('input[name=evk]:checked')||{}).value||'その他',title=$('evTitle').value.trim(),date=$('evDate').value,
+    start=$('evStart').value,end=$('evEnd').value,rep=Number($('evRep').value)||1,err=$('evErr');
+  if(!date){err.textContent='日付を入れてね。';err.hidden=false;return}
+  if(!start||!end||toMin(end)<=toMin(start)){err.textContent='おわりの時刻は、はじまりより後にしてね。';err.hidden=false;return}
+  err.hidden=true;
+  try{for(let i=0;i<rep;i++){const d=parse(date);d.setDate(d.getDate()+7*i);
+      await db.collection('events').add({date:ymd(d),start,end,kind,title,at:new Date().toISOString()})}
+    $('evTitle').value='';$('evRep').value='1';$('evBox').open=false;calSel=date;
+    const pd=parse(date);calMonth=new Date(pd.getFullYear(),pd.getMonth(),1);
+    toast(rep>1?'毎週の予定を'+rep+'回分入れました':'予定を入れました。勉強の時間を並べ直したよ')}catch(e){fail(e)}
+});
+
 /* ---------- 暗記カード・聞き流し ---------- */
 const answerOf=q=>q.c?q.c[q.a]:(q.n?q.n[0]+(q.u||''):'');
 function cardPool(){
@@ -9407,6 +9556,7 @@ function render(){
   if(S.ready.plan&&S.ready.done&&S.ready.config){renderToday();renderNow()}
   if(S.ready.units&&S.ready.unitState)renderBooks();
   renderReport();renderCardsHome();
+  if(S.ready.plan&&S.ready.done)renderCal();
   if(S.ready.scores&&S.ready.config)renderScores();
 }
 
@@ -9574,6 +9724,7 @@ function onErr(){toast('記録の読み込みが止まりました。ページ�
   db.collection('extra').onSnapshot(s=>{S.extra=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
   db.collection('chores').onSnapshot(s=>{S.chores=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
   db.collection('famused').onSnapshot(s=>{S.famUsed=s.docs.map(d=>({id:d.id,...d.data()}));renderReport()},onErr);
+  db.collection('events').onSnapshot(s=>{S.events=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
   // 日付が変わったら表示を更新
   let lastDay=today();setInterval(()=>{if(today()!==lastDay){lastDay=today();view=null;render()}else if(S.ready.plan&&S.ready.done)renderNow()},60000);
   restoreKick();
