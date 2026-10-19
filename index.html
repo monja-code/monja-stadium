@@ -197,6 +197,13 @@ form.sf{display:flex;flex-direction:column;gap:10px;padding-top:12px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--board);color:var(--boardink);padding:10px 16px;border-radius:12px;font-weight:800;z-index:55;max-width:calc(100% - 32px);text-align:center}
 .bta{font:inherit;font-size:.8rem;width:100%;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical}
 #backup .btn{width:100%}
+/* jitsu */
+.jbtns{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.jb{background:var(--surface);border:2px solid var(--sc);color:var(--sc);padding:10px 2px;font-size:.9rem}
+.jrow{display:grid;grid-template-columns:48px 1fr auto;gap:8px;align-items:center;font-size:.85rem;padding:6px 0;border-top:1px dashed var(--line)}
+.jrow .bar{height:10px;border-radius:999px;background:var(--surface2);position:relative;overflow:hidden}
+.jrow .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--sc);border-radius:999px}
+.jrow .bar b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ball)}
 /* calendar */
 .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .calgrid .wd{font-size:.68rem;font-weight:800;text-align:center;color:var(--muted)}
@@ -494,6 +501,19 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
 
   <section class="card" id="books" aria-label="単元チェック">
     <div class="loading">テスト範囲の単元を読み込んでいます…</div>
+  </section>
+
+  <section class="card" id="jitsu" aria-label="実力テスト">
+    <div class="card-head"><h2>実力テスト（入試形式）</h2><span class="muted" style="font-size:.78rem">50点満点・20問・目安25分</span></div>
+    <div class="muted" style="font-size:.85rem">その教科の全単元から20問（1問2.5点）。計算問題は毎回数字が変わります。済々黌の目標は各教科40点。結果は「テストの点数」のグラフにも入ります。</div>
+    <div class="jbtns">
+      <button type="button" class="btn jb" data-jitsu="国語" style="--sc:var(--s-ja)">国語</button>
+      <button type="button" class="btn jb" data-jitsu="数学" style="--sc:var(--s-ma)">数学</button>
+      <button type="button" class="btn jb" data-jitsu="英語" style="--sc:var(--s-en)">英語</button>
+      <button type="button" class="btn jb" data-jitsu="理科" style="--sc:var(--s-sc)">理科</button>
+      <button type="button" class="btn jb" data-jitsu="社会" style="--sc:var(--s-so)">社会</button>
+    </div>
+    <div id="jitsuView"></div>
   </section>
 
   <section class="card" id="cards" aria-label="暗記カード・聞き流し">
@@ -8811,7 +8831,7 @@ fieldset.prio label:has(input:checked){background:var(--pitch);color:var(--chalk
 const SUBJECTS=['国語','数学','英語','理科','社会'];
 const SCOL={国語:'--s-ja',数学:'--s-ma',英語:'--s-en',理科:'--s-sc',社会:'--s-so',全教科:'--s-all',休む:'--s-rest'};
 const PERIODS=['朝','日中','17:00〜','夜'];
-const S={plan:{},done:{},config:null,progress:{},scores:[],rewards:[],catalog:null,exams:[],quiz:{},tests:{},testBonus:[],extra:[],chores:[],famUsed:[],events:[],ready:{}};
+const S={plan:{},done:{},config:null,progress:{},scores:[],rewards:[],catalog:null,exams:[],quiz:{},tests:{},testBonus:[],extra:[],chores:[],famUsed:[],events:[],jitsu:[],ready:{}};
 let db=null, view=null, offline=false;
 
 const $=id=>document.getElementById(id);
@@ -9118,10 +9138,87 @@ async function saveUnit(s,id,patch){
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const norm=v=>String(v).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[−ー－‐]/g,'-').replace(/\s/g,'');
 let Q=null;
+/* ---------- 毎回数字が変わる計算問題（単元キー → 1問を作る関数） ---------- */
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pk=a=>a[Math.floor(Math.random()*a.length)];
+const nz=(a,b)=>{let v=0;while(v===0)v=ri(a,b);return v};
+const mn=n=>String(n).replace('-','−'),sg=n=>n<0?'('+mn(n)+')':'(＋'+n+')';
+const dec=x=>String(Math.round(x*100)/100);
+// 多項式の表示：[[係数,'x²'],[係数,'x'],[係数,'']]
+function poly(ts){let s='';ts.forEach(([c,v])=>{if(!c)return;const a=Math.abs(c),b=(a===1&&v?'':a)+v;s+=(s?(c<0?'−':'＋'):(c<0?'−':''))+b});return s||'0'}
+// 選択肢：正解を先頭に、重ならない誤答を3つまで
+function mc(q,right,wrongs,e){const c=[right];wrongs.forEach(w=>{if(w&&!c.includes(w)&&c.length<4)c.push(w)});return {q,c,a:0,e,gen:true}}
+const nq=(q,ans,u,e)=>({q,n:[String(ans)],u,e,gen:true});
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a),frac=(n,d)=>{const g=gcd(n,d);return d/g===1?String(n/g):(n/g)+'/'+(d/g)};
+const GEN={
+  'ma/a1':()=>pk([
+    ()=>{const a=nz(-12,12),b=nz(-12,12),op=pk(['＋','−']);return nq(sg(a)+op+sg(b)+' を計算しよう。',mn(op==='＋'?a+b:a-b),'','ひく数は符号を変えてたす')},
+    ()=>{const a=nz(-9,9),b=nz(-9,9);return nq(sg(a)+'×'+sg(b)+' を計算しよう。',mn(a*b),'','同符号は＋、異符号は−')},
+    ()=>{const b=ri(2,9)*pk([1,-1]),r=nz(-9,9);return nq(sg(b*r)+'÷'+sg(b)+' を計算しよう。',mn(r))},
+    ()=>{const a=ri(-9,9),b=nz(-6,6),c=ri(2,6);return nq(mn(a)+'＋'+sg(b)+'×'+c+' を計算しよう。',mn(a+b*c),'','かけ算が先')}])(),
+  'ma/a2':()=>{const x=nz(-5,5),a=nz(-6,6),b=ri(-9,9);return nq('x＝'+mn(x)+' のとき、'+poly([[a,'x'],[b,'']])+' の値は？',mn(a*x+b),'','x に '+sg(x)+' を代入')},
+  'ma/a3':()=>{const x=nz(-9,9),a=ri(2,7);let c=ri(1,6);if(c===a)c=a-1;const b=ri(-10,10),d=a*x+b-c*x;
+    return nq(poly([[a,'x'],[b,'']])+'＝'+poly([[c,'x'],[d,'']])+' を解こう。x＝？',mn(x),'','x の項を左、数を右に移項する')},
+  'ma/a4':()=>pk([
+    ()=>{const a=nz(-6,6),x0=nz(-6,6),x1=nz(-8,8);return nq('y は x に比例し、x＝'+mn(x0)+' のとき y＝'+mn(a*x0)+'。x＝'+mn(x1)+' のときの y は？',mn(a*x1),'','y＝'+mn(a)+'x')},
+    ()=>{const k=pk([12,18,24,30,36]),ds=[1,2,3,6].filter(v=>k%v===0),x0=pk(ds),x1=pk([2,3,4,6].filter(v=>k%v===0&&v!==x0));
+      return nq('y は x に反比例し、x＝'+x0+' のとき y＝'+(k/x0)+'。x＝'+x1+' のときの y は？',k/x1,'','xy＝'+k+' で一定')}])(),
+  'ma/b2':()=>{let a1,b1,a2,b2;const x=nz(-6,6),y=nz(-6,6);do{a1=nz(-4,4);b1=nz(-4,4);a2=nz(-4,4);b2=nz(-4,4)}while(a1*b2-a2*b1===0);
+    return nq('連立方程式 '+poly([[a1,'x'],[b1,'y']])+'＝'+mn(a1*x+b1*y)+'、'+poly([[a2,'x'],[b2,'y']])+'＝'+mn(a2*x+b2*y)+' の x の値は？',mn(x),'','答え：x＝'+mn(x)+'、y＝'+mn(y))},
+  'ma/c1':()=>{let p=nz(-9,9),q=nz(-9,9);if(p===-q)q=q+1||2;const ex=poly([[1,'x²'],[p+q,'x'],[p*q,'']]),f=(a,b)=>'('+poly([[1,'x'],[a,'']])+')('+poly([[1,'x'],[b,'']])+')';
+    return Math.random()<0.5?mc(f(p,q)+' を展開しよう。',ex,[poly([[1,'x²'],[p*q,'x'],[p+q,'']]),poly([[1,'x²'],[p+q,'x'],[-p*q,'']]),poly([[1,'x²'],[-(p+q),'x'],[p*q,'']])],'(x＋a)(x＋b)＝x²＋(a＋b)x＋ab')
+      :mc(ex+' を因数分解しよう。',f(p,q),[f(-p,-q),f(p,-q),f(-p,q)],'たして '+mn(p+q)+'、かけて '+mn(p*q)+' になる2数')},
+  'ma/c2':()=>pk([
+    ()=>{const k=ri(2,6),m=pk([2,3,5,6,7]);return mc('√'+(k*k*m)+' を a√b の形にしよう。',k+'√'+m,[(k*k)+'√'+m,(k+1)+'√'+m,k+'√'+(k*m)],'√'+(k*k*m)+'＝√('+(k*k)+'×'+m+')')},
+    ()=>{const a=pk([2,3,5,6]),s=pk([4,9]);return nq('√'+a+'×√'+(a*s)+' を計算しよう。',a*Math.sqrt(s),'','√'+(a*a*s)+'＝'+(a*Math.sqrt(s)))}])(),
+  'ma/c3':()=>{let p=nz(-7,7),q=nz(-7,7);if(p===q)q=p>0?p-8:p+8;const lo=Math.min(p,q),hi=Math.max(p,q),r=(a,b)=>'x＝'+mn(Math.min(a,b))+', '+mn(Math.max(a,b));
+    return mc('二次方程式 '+poly([[1,'x²'],[-(p+q),'x'],[p*q,'']])+'＝0 を解こう。',r(lo,hi),[r(-lo,-hi),r(lo,-hi),r(-lo,hi)],'(x'+(lo<0?'＋'+(-lo):'−'+lo)+')(x'+(hi<0?'＋'+(-hi):'−'+hi)+')＝0')},
+  'ma/b3':()=>pk([
+    ()=>{const a=nz(-4,4),b=ri(-6,6),x1=ri(-4,1),x2=x1+ri(1,4);return nq('2点 ('+mn(x1)+', '+mn(a*x1+b)+')、('+mn(x2)+', '+mn(a*x2+b)+') を通る直線の傾きは？',mn(a),'','傾き＝yの増加量÷xの増加量')},
+    ()=>{const a=nz(-5,5),b=ri(-8,8),x=nz(-5,5);return nq('一次関数 y＝'+poly([[a,'x'],[b,'']])+' で、x＝'+mn(x)+' のときの y は？',mn(a*x+b))}])(),
+  'ma/b6':()=>{const s=ri(3,11),n=6-Math.abs(s-7);return mc('さいころを2個投げて、出た目の和が '+s+' になる確率は？',frac(n,36),[frac(n+1,36),frac(Math.max(1,n-1),36),frac(1,6)===frac(n,36)?frac(1,9):frac(1,6)],'36通りのうち '+n+'通り')},
+  'ma/a7':()=>pk([
+    ()=>{const v=shuffle(Array.from({length:12},(_,i)=>i*2+ri(1,2))).slice(0,5),m=v.slice().sort((a,b)=>a-b)[2];return nq(v.join(', ')+' の中央値は？',m,'','小さい順に並べた真ん中')},
+    ()=>{const m=ri(4,15),d=[ri(1,3),ri(1,4)],v=shuffle([m-d[0],m+d[0],m-d[1],m+d[1]]);return nq(v.join(', ')+' の平均値は？',m)}])(),
+  'sc/s3':()=>pk([
+    ()=>{const A=pk([0.01,0.02,0.04,0.05,0.1,0.2]),F=pk([10,20,30,40,60,80,120]);return nq(F+'Nの力が '+A+'m² の面に垂直にはたらくときの圧力は何Pa？',Math.round(F/A),'Pa','圧力＝力÷面積')},
+    ()=>{const p=pk([1,2,3,4,5]),n=ri(2,8);return nq('1Nの力で '+p+'cm のびるばねに '+n+'N の力を加えると何cmのびる？',p*n,'cm','のびは力に比例')},
+    ()=>{const t=ri(2,6);return nq('雷の光が見えてから '+t+' 秒後に音が聞こえた。音の速さを340m/sとすると、雷までの距離は何m？',340*t,'m')}])(),
+  'sc/u1':()=>pk([
+    ()=>{const t=pk([4,5,6,8,10,12,20]),v=ri(2,12);return nq((v*t)+'m を '+t+'秒で進んだときの平均の速さは何m/s？',v,'m/s','速さ＝距離÷時間')},
+    ()=>{const F=ri(2,30),d=ri(1,5);return nq(F+'Nの物体を '+d+'m 持ち上げたときの仕事は何J？',F*d,'J','仕事＝力×距離')},
+    ()=>{const t=pk([2,3,4,5,6]),w=ri(5,40);return nq((w*t)+'Jの仕事を '+t+'秒でしたときの仕事率は何W？',w,'W','仕事率＝仕事÷時間')},
+    ()=>{const a=ri(15,40),b=ri(2,10);return nq('ばねばかりで物体の重さが空気中で '+dec(a/10)+'N、水中に全部しずめると '+dec((a-b)/10)+'N だった。浮力は何N？',dec(b/10),'N','空気中−水中')}])(),
+  'sc/t3':()=>pk([
+    ()=>{const R=pk([2,3,4,5,6,8,10,12,15,20]),I=pk([0.5,1,1.5,2,3]);return nq(R+'Ωの抵抗に '+dec(R*I)+'V の電圧を加えると、流れる電流は何A？',dec(I),'A','I＝V÷R')},
+    ()=>{const R=pk([2,4,5,10,20,30]),I=pk([0.2,0.5,1,2]);return nq(dec(R*I)+'Vの電圧で '+dec(I)+'A の電流が流れる抵抗は何Ω？',R,'Ω','R＝V÷I')},
+    ()=>{const V=pk([3,6,12,100]),I=pk([0.5,1,2,3,5]);return nq(V+'Vで '+I+'A の電流が流れるときの電力は何W？',dec(V*I),'W','電力＝電圧×電流')},
+    ()=>{const a=pk([5,10,15,20]),b=pk([10,20,30,40]);return nq(a+'Ωと '+b+'Ω の抵抗を直列につないだときの全体の抵抗は何Ω？',a+b,'Ω','直列は和')}])(),
+  'sc/s2':()=>pk([
+    ()=>{const d=pk([0.9,1,2.7,7.9,8.9,11.3]),V=pk([10,20,50,100]);return nq('質量 '+dec(d*V)+'g、体積 '+V+'cm³ の物質の密度は何g/cm³？',dec(d),'g/cm³','密度＝質量÷体積')},
+    ()=>{const T=pk([100,200,400,500]),p=ri(5,30),s=T*p/100;return nq('水 '+(T-s)+'g に食塩 '+s+'g を溶かした食塩水の質量パーセント濃度は何％？',p,'％','溶質÷水溶液全体×100')}])(),
+  'sc/t1':()=>pk([
+    ()=>{const c=pk([0.4,0.8,1.2,1.6,2,2.4]);return nq('銅 '+dec(c)+'g を十分に加熱すると、酸化銅は何gできる？（銅：酸素＝4：1）',dec(c*5/4),'g','酸素は銅の4分の1')},
+    ()=>{const m=pk([0.3,0.6,0.9,1.2,1.5]);return nq('マグネシウム '+dec(m)+'g を十分に加熱すると、酸化マグネシウムは何gできる？（マグネシウム：酸素＝3：2）',dec(m*5/3),'g','酸素はマグネシウムの3分の2')}])(),
+  'sc/t4':()=>{const tb={10:9.4,15:12.8,20:17.3,25:23.1,30:30.4},T=pk([10,15,20,25,30]),p=pk([40,50,60,70,80]);
+    return nq('気温 '+T+'℃（飽和水蒸気量 '+tb[T]+'g/m³）の空気に、水蒸気が '+dec(tb[T]*p/100)+'g/m³ ふくまれている。湿度は何％？',p,'％','水蒸気量÷飽和水蒸気量×100')}
+};
+const prepQ=q=>({...q,opts:q.c?shuffle(q.c.map((t,i)=>({t,ok:i===q.a}))):null});
 function startQuiz(s,id){
   const qs=quizOf(s,id);if(!qs)return;
-  const unit=((S.units.subjects||{})[s]||[]).find(u=>u.id===id);
-  Q={s,id,name:unit?unit.name:'',items:shuffle(qs).map(q=>({...q,opts:q.c?shuffle(q.c.map((t,i)=>({t,ok:i===q.a}))):null})),i:0,score:0,wrong:[],answered:false};
+  const unit=((S.units.subjects||{})[s]||[]).find(u=>u.id===id),gen=GEN[QKEY[s]+'/'+id];
+  // 計算単元は10問のうち6問を毎回新しく作り、残り4問を問題集から出す
+  const items=gen?shuffle(Array.from({length:6},()=>gen()).concat(shuffle(qs).slice(0,4))):shuffle(qs);
+  Q={s,id,name:unit?unit.name:'',items:items.map(prepQ),i:0,score:0,wrong:[],answered:false};
+  $('quiz').hidden=false;document.body.style.overflow='hidden';drawQuiz();
+}
+/* ---------- 実力テスト（入試形式・50点満点）：その教科の全単元から20問 ---------- */
+const JITSU_N=20;
+function startJitsu(s){
+  const us=((S.units&&S.units.subjects)||{})[s]||[],pool=[];
+  let order=shuffle(us.filter(u=>quizOf(s,u.id)));if(!order.length)return;
+  while(pool.length<JITSU_N){order.forEach(u=>{if(pool.length>=JITSU_N)return;const g=GEN[QKEY[s]+'/'+u.id],qs=quizOf(s,u.id);
+    const q=g&&Math.random()<0.6?g():pk(qs);if(!pool.some(p=>p.q===q.q))pool.push({...q,uid:u.id,uname:u.name})});order=shuffle(order)}
+  Q={mode:'jitsu',s,id:null,name:'実力テスト（50点満点）',items:shuffle(pool).map(prepQ),i:0,score:0,wrong:[],answered:false,start:Date.now()};
   $('quiz').hidden=false;document.body.style.overflow='hidden';drawQuiz();
 }
 /* リスニング：英文をスマホの読み上げで流す */
@@ -9130,36 +9227,61 @@ function drawQuiz(){
   const box=$('quizBox'),q=Q.items[Q.i];
   if(!q){return finishQuiz()}
   let h='<div class="qhead"><span style="color:'+col(Q.s)+'">'+esc(Q.s)+'</span><span>'+esc(Q.name)+'</span><button type="button" class="qx" data-qclose="1" aria-label="やめる">×</button></div>'+
-    '<div class="qprog num">'+(Q.i+1)+' / '+Q.items.length+'<span class="track"><span class="fill" style="width:'+Math.round(Q.i/Q.items.length*100)+'%;display:block"></span></span>正解 '+Q.score+'</div>'+
+    '<div class="qprog num">'+(Q.i+1)+' / '+Q.items.length+'<span class="track"><span class="fill" style="width:'+Math.round(Q.i/Q.items.length*100)+'%;display:block"></span></span>'+(Q.mode==='jitsu'?'⏱ '+hms((Date.now()-Q.start)/1000):'正解 '+Q.score)+'</div>'+(q.gen?'<div class="muted" style="font-size:.75rem">🔄 毎回数字が変わる問題</div>':'')+
     '<div class="qq">'+esc(q.q)+'</div>'+(q.say?'<button type="button" class="btn ball big" data-qsay="1">🔊 英語を聞く（何回でも）</button>':'');
   if(q.opts)h+='<div class="qopts">'+q.opts.map((o,k)=>'<button type="button" class="qopt" data-opt="'+k+'">'+esc(o.t)+'</button>').join('')+'</div>';
   else h+='<form class="qnum" id="qnumForm"><input id="qnum" type="text" inputmode="decimal" autocomplete="off" placeholder="答えを入力">'+(q.u?'<span class="qu">'+esc(q.u)+'</span>':'')+'<button class="btn pitch" type="submit">答える</button></form>';
   h+='<div id="qfb"></div>';
   box.innerHTML=h;Q.answered=false;if(q.say)setTimeout(()=>sayEn(q.say),400);
-  const inp=$('qnum');if(inp){inp.focus();$('qnumForm').addEventListener('submit',e=>{e.preventDefault();if(inp.value.trim()==='')return;answer(q.n.map(norm).includes(norm(inp.value)),inp.value)})}
+  const inp=$('qnum');if(inp){inp.focus();$('qnumForm').addEventListener('submit',e=>{e.preventDefault();if(inp.value.trim()==='')return;const v=norm(inp.value);answer(q.n.some(a=>{const x=norm(a);return x===v||(x!==''&&v!==''&&isFinite(+x)&&+x===+v)}),inp.value)})}
 }
 function answer(ok,given){
   if(Q.answered)return;Q.answered=true;const q=Q.items[Q.i];
-  if(ok)Q.score++;else Q.wrong.push({q:q.q,ans:q.c?q.c[q.a]:q.n[0]+(q.u||''),e:q.e});
+  if(ok)Q.score++;else{q.miss=true;Q.wrong.push({q:q.q,ans:q.c?q.c[q.a]:q.n[0]+(q.u||''),e:q.e})}
   $('quizBox').querySelectorAll('.qopt').forEach(b=>{const o=q.opts[b.dataset.opt];b.disabled=true;if(o.ok)b.classList.add('right');else if(b.dataset.picked)b.classList.add('wrong')});
   const fi=$('qnum');if(fi)fi.disabled=true;
   $('qfb').innerHTML='<div class="qfb '+(ok?'ok':'ng')+'"><b>'+(ok?'正解！':'ざんねん')+'</b>'+(ok?'':'<div>答え：'+esc(q.c?q.c[q.a]:q.n[0]+(q.u||''))+'</div>')+(q.e?'<div class="qe">'+esc(q.e)+'</div>':'')+'</div>'+
     '<button type="button" class="btn ball" data-qnext="1" style="width:100%">'+(Q.i+1<Q.items.length?'次の問題へ':'結果を見る')+'</button>';
   $('qfb').querySelector('[data-qnext]').focus();
 }
+async function finishJitsu(){
+  const {s,score}=Q,total=Q.items.length,pt=Math.round(score/total*50*10)/10,target=Number(((cfg().targets||{}).exam||{})[s]??40),sec=Math.round((Date.now()-Q.start)/1000),t=today();
+  const prev=(S.jitsu||[]).filter(j=>j.subject===s).sort((a,b)=>(b.at||'').localeCompare(a.at||''))[0];
+  const wrongUnits={};Q.items.forEach(q=>{if(q.miss)wrongUnits[q.uid]=(wrongUnits[q.uid]||{name:q.uname,n:0}),wrongUnits[q.uid].n++});
+  const wu=Object.entries(wrongUnits).sort((a,b)=>b[1].n-a[1].n);
+  const d=Math.round((pt-target)*10)/10;
+  let h='<div class="qhead"><span style="color:'+col(s)+'">'+esc(s)+'</span><span>実力テスト（50点満点）</span><button type="button" class="qx" data-qclose="1" aria-label="閉じる">×</button></div>'+
+    '<div class="qres '+(d>=0?'ok':'ng')+'"><div class="led num">'+pt+'<small>/ 50</small></div><b>'+(d>=0?'目標クリア！ +'+d+'点':'済々黌の目標（'+target+'点）まで あと '+(-d)+'点')+'</b>'+
+    '<span class="muted" style="font-size:.82rem">'+score+' / '+total+' 問正解・'+fmtMin(Math.max(1,Math.round(sec/60)))+(prev?'・前回 '+prev.score+'点 → 今回 '+pt+'点':'')+'</span></div>';
+  if(wu.length)h+='<div class="warn">間違えた単元：'+wu.map(([id,v])=>esc(v.name)+(v.n>1?'（'+v.n+'問）':'')).join('、')+'。確認テストと暗記カードで復習しよう。</div>';
+  if(Q.wrong.length)h+='<div class="qwrong"><b>間違えた問題</b>'+Q.wrong.map(w=>'<div><div>'+esc(w.q)+'</div><div class="qa">答え：'+esc(w.ans)+'</div>'+(w.e?'<div class="qe">'+esc(w.e)+'</div>':'')+'</div>').join('')+'</div>';
+  h+='<div class="row2"><button type="button" class="btn plain" data-qretry="1">別の問題でもう一度</button><button type="button" class="btn pitch" data-qclose="1">閉じる</button></div>';
+  $('quizBox').innerHTML=h;
+  try{await db.collection('jitsu').add({date:t,subject:s,score:pt,correct:score,total,sec,wrongUnits:wu.map(([id])=>id),at:new Date().toISOString()});
+    await db.collection('scores').add({name:'実力テスト（'+s+'）',date:t,kind:'exam',max:50,scores:{[s]:pt},createdAt:new Date().toISOString()})}catch(e){fail(e)}
+}
 async function finishQuiz(){
+  if(Q.mode==='jitsu')return finishJitsu();
   const {s,id,score}=Q,total=Q.items.length,pass=score/total>=PASS,k=QKEY[s],t=today();
   const bonusId=k+'-'+id+'-'+t,gotBonus=pass&&!S.testBonus.some(b=>b.id===bonusId);
   let h='<div class="qhead"><span style="color:'+col(s)+'">'+esc(s)+'</span><span>'+esc(Q.name)+'</span><button type="button" class="qx" data-qclose="1" aria-label="閉じる">×</button></div>'+
     '<div class="qres '+(pass?'ok':'ng')+'"><div class="led num">'+score+'<small>/ '+total+'</small></div><b>'+(pass?'合格！':'あと'+(Math.ceil(total*PASS)-score)+'問で合格')+'</b>'+
     (gotBonus?'<span class="chip ball">eFootball +'+TEST_BONUS+'分</span>':(pass?'<span class="muted" style="font-size:.8rem">この単元のボーナスは今日はもらい済み</span>':''))+'</div>';
   if(Q.wrong.length)h+='<div class="qwrong"><b>間違えた問題</b>'+Q.wrong.map(w=>'<div><div>'+esc(w.q)+'</div><div class="qa">答え：'+esc(w.ans)+'</div>'+(w.e?'<div class="qe">'+esc(w.e)+'</div>':'')+'</div>').join('')+'</div>';
-  h+='<div class="row2"><button type="button" class="btn plain" data-qretry="1">もう一度</button><button type="button" class="btn pitch" data-qclose="1">閉じる</button></div>';
+  h+='<div class="row2"><button type="button" class="btn plain" data-qretry="1">'+(GEN[k+'/'+id]?'新しい問題でもう一度':'もう一度')+'</button><button type="button" class="btn pitch" data-qclose="1">閉じる</button></div>';
   $('quizBox').innerHTML=h;
   const prev=testOf(s,id)||{},rec={last:score,total,best:Math.max(prev.best||0,score),n:(prev.n||0)+1,at:new Date().toISOString(),
     hist:(prev.hist||[]).concat([{d:t,sc:score}]).slice(-10),wrong:Q.wrong.map(w=>w.q)};
   const next=JSON.parse(JSON.stringify(S.tests||{}));next[k]=next[k]||{};next[k][id]=rec;S.tests=next;renderBooks();
   try{await db.doc('progress/tests').set(next);if(gotBonus)await db.doc('testbonus/'+bonusId).set({minutes:TEST_BONUS,at:new Date().toISOString()})}catch(e){fail(e)}
+}
+function renderJitsu(){
+  const box=$('jitsuView');if(!box)return;const all=(S.jitsu||[]).slice().sort((a,b)=>(a.at||'').localeCompare(b.at||''));
+  if(!all.length){box.innerHTML='<div class="note">まだ受けていません。教科を選んで、本番と同じ50点満点で今の実力を測ろう。</div>';return}
+  let h='<div class="muted" style="font-size:.75rem">最新の点数（黄色の線＝目標40点）</div>';
+  SUBJECTS.forEach(s=>{const js=all.filter(j=>j.subject===s);if(!js.length)return;const last=js.at(-1),best=Math.max(...js.map(j=>j.score)),tg=Number(((cfg().targets||{}).exam||{})[s]??40);
+    h+='<div class="jrow" style="--sc:'+col(s)+'"><b style="color:'+col(s)+'">'+s+'</b><span class="bar"><i style="width:'+(last.score/50*100)+'%"></i><b style="left:'+(tg/50*100)+'%"></b></span><span class="num">'+last.score+'点'+(js.length>1?'（'+js.length+'回・最高'+best+'）':'')+'</span></div>'});
+  box.innerHTML=h;
 }
 function closeQuiz(){try{speechSynthesis.cancel()}catch(e){}$('quiz').hidden=true;document.body.style.overflow='';Q=null}
 
@@ -9555,7 +9677,7 @@ function render(){
   if(S.ready.plan&&S.ready.done&&S.ready.config&&S.ready.rewards){renderBank();renderStats()}
   if(S.ready.plan&&S.ready.done&&S.ready.config){renderToday();renderNow()}
   if(S.ready.units&&S.ready.unitState)renderBooks();
-  renderReport();renderCardsHome();
+  renderReport();renderCardsHome();renderJitsu();
   if(S.ready.plan&&S.ready.done)renderCal();
   if(S.ready.scores&&S.ready.config)renderScores();
 }
@@ -9597,7 +9719,8 @@ document.addEventListener('click',async ev=>{
   if(b.dataset.qsay&&Q){sayEn(Q.items[Q.i].say);return}
   if(b.dataset.opt!=null&&Q){b.dataset.picked='1';answer(Q.items[Q.i].opts[b.dataset.opt].ok);return}
   if(b.dataset.qnext&&Q){Q.i++;drawQuiz();return}
-  if(b.dataset.qretry&&Q){const {s,id}=Q;startQuiz(s,id);return}
+  if(b.dataset.qretry&&Q){const {s,id,mode}=Q;if(mode==='jitsu')startJitsu(s);else startQuiz(s,id);return}
+  if(b.dataset.jitsu){startJitsu(b.dataset.jitsu);return}
   if(b.dataset.qclose){closeQuiz();return}
   if(b.dataset.use){const n=Number(b.dataset.use);
     ask('eFootball時間を '+n+'分 使う？',async()=>{try{await db.collection('rewards').add({minutes:n,at:new Date().toISOString()});toast('⚽ eFootball '+n+'分、楽しんで！')}catch(e){fail(e)}});return}
@@ -9685,6 +9808,7 @@ function weeklyReport(){
     '計画をやり切った日：'+k.cur+'日連続（最高 '+k.best+'日）',
     '確認テスト：今週 '+tn+'回・合格 '+tp+'回'+(passed.length?'（'+[...new Set(passed)].slice(0,5).join('、')+'）':''),
     'eFootball：貯金 '+T.balance+'分（今週使った '+used+'分）',
+    '実力テスト（今週）：'+((S.jitsu||[]).filter(j=>j.date>=ms&&j.date<=ss).map(j=>j.subject+' '+j.score+'点').join('、')||'なし'),
     '自主勉：今週 '+fmtMin(S.extra.filter(e=>e.date>=ms&&e.date<=ss).reduce((a,e)=>a+(Number(e.minutes)||0),0)),
     'お手伝い：今週 '+S.chores.filter(c=>c.date>=ms&&c.date<=ss).reduce((a,c)=>a+(Number(c.count)||1),0)+'つ（家族ポイント 合計 '+famTotal()+'pt）',
     warns.length?'⚠ 思い込み注意：'+warns.join('、'):'⚠ 思い込み注意：なし'].join('\n');
@@ -9724,6 +9848,7 @@ function onErr(){toast('記録の読み込みが止まりました。ページ�
   db.collection('extra').onSnapshot(s=>{S.extra=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
   db.collection('chores').onSnapshot(s=>{S.chores=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
   db.collection('famused').onSnapshot(s=>{S.famUsed=s.docs.map(d=>({id:d.id,...d.data()}));renderReport()},onErr);
+  db.collection('jitsu').onSnapshot(s=>{S.jitsu=s.docs.map(d=>({id:d.id,...d.data()}));renderJitsu()},onErr);
   db.collection('events').onSnapshot(s=>{S.events=s.docs.map(d=>({id:d.id,...d.data()}));render()},onErr);
   // 日付が変わったら表示を更新
   let lastDay=today();setInterval(()=>{if(today()!==lastDay){lastDay=today();view=null;render()}else if(S.ready.plan&&S.ready.done)renderNow()},60000);
