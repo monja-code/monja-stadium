@@ -10094,7 +10094,22 @@ function renderToday(){
         (x.minutes?'<span>'+fmtMin(x.minutes)+'</span>':'')+(earnOf(x)?'<span class="earn">+'+earnOf(x)+'分⚽</span>':'')+'</span></span>'+
         '<span class="check" aria-hidden="true">✓</span></button>'});
     h+='</div>'});
+  if(!future&&slots.length) h+='<button class="btn pitch" type="button" data-dayrep="1" style="width:100%;margin-top:10px">📮 '+(view===t?'今日':md(view)+' ')+'の勉強をお母さんに送る（'+n+' / '+slots.length+' コマ）</button>';
   box.innerHTML=h;
+}
+
+/* 1日の勉強の報告（お母さんにLINEで送る） */
+function dayReport(d){
+  const slots=slotsOf(d),n=slots.filter(x=>isDone(d,x.id)).length,pct=slots.length?Math.round(n/slots.length*100):0;
+  const lines=['【もんじゃスタジアム】'+(d===today()?'今日':'')+'の勉強 '+md(d),
+    '計画：'+n+' / '+slots.length+' コマ（'+pct+'%）・'+fmtMin(dayDoneMin(d))+(dayComplete(d)?'　GOAL!! 全部やり切った':'')];
+  slots.forEach(x=>lines.push((isDone(d,x.id)?'✅ ':'⬜ ')+x.subject+' '+x.title));
+  const ex=S.extra.filter(e=>e.date===d).reduce((a,e)=>a+(Number(e.minutes)||0),0);
+  let tn=0,tp=0;Object.values(S.tests||{}).forEach(us=>Object.values(us).forEach(r=>(r.hist||[]).forEach(h=>{if(h.d===d){tn++;if(h.sc/(r.total||10)>=PASS)tp++}})));
+  if(ex)lines.push('自主勉：'+fmtMin(ex));
+  if(tn)lines.push('確認テスト：'+tn+'回（合格 '+tp+'回）');
+  if(d===today())lines.push('eFootball：今日 +'+totals().todayEarn+'分（貯金 '+totals().balance+'分）');
+  return lines.join('\n');
 }
 
 /* ---------- stats ---------- */
@@ -10809,6 +10824,7 @@ document.addEventListener('click',async ev=>{
   const b=ev.target.closest('button');if(!b||!db)return;
   if(b.dataset.nav){const days=planDays(),i=days.indexOf(view)+Number(b.dataset.nav);if(days[i]){view=days[i];renderToday()}return}
   if(b.dataset.slot){setDone(view,b.dataset.slot,!isDone(view,b.dataset.slot),b);return}
+  if(b.dataset.dayrep){const r=await shareReport(dayReport(view),null);toast(r==='shared'?'お母さんに送りました！':r==='copied'?'報告の文章をコピーしました。LINEに貼って送ってね':r==='cancel'?'送るのをやめました':'LINEには自分で伝えてね');return}
   if(b.dataset.nowdone){setDone(today(),b.dataset.nowdone,true,b);return}
   if(b.dataset.kick){startKick(b.dataset.kick);return}
   if(b.dataset.kpause){pauseKick();return}
