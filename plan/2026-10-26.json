@@ -1,0 +1,32 @@
+{
+    "note":  "テスト前日",
+    "slots":  [
+                  {
+                      "id":  "m",
+                      "minutes":  60,
+                      "period":  "朝",
+                      "subject":  "全教科",
+                      "time":  "6:40〜7:40",
+                      "title":  "理科・英語 最終確認",
+                      "first":  "実力テストで40点に届かなかった教科から"
+                  },
+                  {
+                      "id":  "e1",
+                      "minutes":  120,
+                      "period":  "17:00〜",
+                      "subject":  "全教科",
+                      "time":  "17:00〜19:00",
+                      "title":  "暗記の最終確認",
+                      "first":  "暗記カード「間違えた問題」を全教科"
+                  },
+                  {
+                      "id":  "n1",
+                      "minutes":  0,
+                      "period":  "夜",
+                      "subject":  "休む",
+                      "time":  "",
+                      "title":  "早めに寝る"
+                  }
+              ],
+    "soccer":  false
+}

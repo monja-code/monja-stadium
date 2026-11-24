@@ -1,0 +1,32 @@
+{
+    "slots":  [
+                  {
+                      "id":  "m",
+                      "minutes":  60,
+                      "period":  "朝",
+                      "subject":  "数学",
+                      "time":  "6:40〜7:40",
+                      "title":  "2年",
+                      "first":  "確認テスト「一次関数」"
+                  },
+                  {
+                      "id":  "e1",
+                      "minutes":  60,
+                      "period":  "17:00〜",
+                      "subject":  "英語",
+                      "time":  "17:00〜18:00",
+                      "title":  "対話文",
+                      "first":  "確認テスト「対話文」"
+                  },
+                  {
+                      "id":  "n1",
+                      "minutes":  30,
+                      "period":  "夜",
+                      "subject":  "国語",
+                      "time":  "21:30〜22:00",
+                      "title":  "漢字",
+                      "first":  "確認テスト「漢字の読み書き」"
+                  }
+              ],
+    "soccer":  true
+}

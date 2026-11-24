@@ -1,0 +1,45 @@
+{
+  "slots": [
+    {
+      "id": "m",
+      "minutes": 60,
+      "period": "朝",
+      "subject": "英語",
+      "time": "6:40〜7:40",
+      "title": "英単語"
+    },
+    {
+      "id": "e1",
+      "minutes": 60,
+      "period": "17:00〜",
+      "subject": "英語",
+      "time": "17:00〜19:00",
+      "title": "英語ワーク 残り"
+    },
+    {
+      "id": "e2",
+      "minutes": 60,
+      "period": "17:00〜",
+      "subject": "理科",
+      "time": "17:00〜19:00",
+      "title": "理科ワーク 残り"
+    },
+    {
+      "id": "n1",
+      "minutes": 60,
+      "period": "夜",
+      "subject": "数学",
+      "time": "20:00〜22:00",
+      "title": "数学ワーク 残り"
+    },
+    {
+      "id": "n2",
+      "minutes": 60,
+      "period": "夜",
+      "subject": "国語",
+      "time": "20:00〜22:00",
+      "title": "国語ワーク 残り"
+    }
+  ],
+  "soccer": false
+}

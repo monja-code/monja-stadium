@@ -1,0 +1,31 @@
+{
+    "note":  "3時間・配分は自分で",
+    "slots":  [
+                  {
+                      "id":  "d1",
+                      "minutes":  60,
+                      "period":  "日中",
+                      "subject":  "英語",
+                      "time":  "サッカーに合わせて自分で配分",
+                      "title":  "英作文",
+                      "first":  "確認テスト「英作文」"
+                  },
+                  {
+                      "id":  "d2",
+                      "minutes":  60,
+                      "period":  "日中",
+                      "subject":  "理科",
+                      "title":  "やり直し",
+                      "first":  "1・2年で不合格の単元をもう一度"
+                  },
+                  {
+                      "id":  "d3",
+                      "minutes":  60,
+                      "period":  "日中",
+                      "subject":  "数学",
+                      "title":  "2年",
+                      "first":  "確認テスト「平行と合同」「三角形と四角形」"
+                  }
+              ],
+    "soccer":  false
+}

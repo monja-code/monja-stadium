@@ -1,0 +1,29 @@
+{
+  "slots": [
+    {
+      "id": "m",
+      "minutes": 60,
+      "period": "朝",
+      "subject": "理科",
+      "time": "6:40〜7:40",
+      "title": "計算"
+    },
+    {
+      "id": "e1",
+      "minutes": 60,
+      "period": "17:00〜",
+      "subject": "国語",
+      "time": "17:00〜18:00",
+      "title": "読解"
+    },
+    {
+      "id": "n1",
+      "minutes": 30,
+      "period": "夜",
+      "subject": "国語",
+      "time": "21:30〜22:00",
+      "title": "漢字"
+    }
+  ],
+  "soccer": true
+}

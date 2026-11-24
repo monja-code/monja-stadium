@@ -1,0 +1,31 @@
+{
+    "note":  "勤労感謝の日。3時間・配分は自分で",
+    "slots":  [
+                  {
+                      "id":  "d1",
+                      "minutes":  60,
+                      "period":  "日中",
+                      "subject":  "英語",
+                      "time":  "サッカーに合わせて自分で配分",
+                      "title":  "長文",
+                      "first":  "確認テスト「長文読解」→音読"
+                  },
+                  {
+                      "id":  "d2",
+                      "minutes":  60,
+                      "period":  "日中",
+                      "subject":  "社会",
+                      "title":  "公民",
+                      "first":  "確認テスト「現代の民主政治」「時事問題」"
+                  },
+                  {
+                      "id":  "d3",
+                      "minutes":  60,
+                      "period":  "日中",
+                      "subject":  "理科",
+                      "title":  "やり直し",
+                      "first":  "3年で不合格の単元をもう一度"
+                  }
+              ],
+    "soccer":  false
+}

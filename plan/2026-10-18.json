@@ -1,0 +1,28 @@
+{
+  "note": "3時間・配分は自分で",
+  "slots": [
+    {
+      "id": "d1",
+      "minutes": 60,
+      "period": "日中",
+      "subject": "数学",
+      "time": "サッカーに合わせて自分で配分",
+      "title": "数学ワーク"
+    },
+    {
+      "id": "d2",
+      "minutes": 60,
+      "period": "日中",
+      "subject": "理科",
+      "title": "理科ワーク"
+    },
+    {
+      "id": "d3",
+      "minutes": 60,
+      "period": "日中",
+      "subject": "国語",
+      "title": "読解"
+    }
+  ],
+  "soccer": false
+}
