@@ -13,10 +13,18 @@ $head = '{0}/{1}（{2}）' -f $jst.Month, $jst.Day, $wd
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $file = Join-Path (Join-Path $root 'plan') ($key + '.json')
 $app = 'https://monja-code.github.io/monja-stadium/'
+# その日のポイント（line/YYYY-MM-DD.json：tip＝見出し・✔️3つ・ひと言／today＝計画がない日の1行）
+$extraFile = Join-Path (Join-Path $root 'line') ($key + '.json')
+$extra = $null
+if (Test-Path $extraFile) { $extra = [IO.File]::ReadAllText($extraFile, [Text.Encoding]::UTF8) | ConvertFrom-Json }
 
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add('おはよう！☀ ' + $head + ' の勉強だよ')
-if (Test-Path $file) {
+if ($extra -and $extra.today) {
+  # today があれば、計画の代わりにこの文を送る（模試の日など）
+  $lines.Add('')
+  $lines.Add($extra.today)
+} elseif (Test-Path $file) {
   $plan = [IO.File]::ReadAllText($file, [Text.Encoding]::UTF8) | ConvertFrom-Json
   if ($plan.soccer) { $lines.Add('⚽ 今日は練習の日（18:30出発）') }
   $lines.Add('')
@@ -32,6 +40,12 @@ if (Test-Path $file) {
 } else {
   $lines.Add('')
   $lines.Add('今日の計画はまだ入っていません。アプリの自主勉で、苦手な単元を1つやろう。')
+}
+if ($extra -and $extra.tip) {
+  $lines.Add('')
+  $lines.Add('💡 今日のポイント｜' + $extra.tip.title)
+  foreach ($c in $extra.tip.checks) { $lines.Add('✔️ ' + $c) }
+  if ($extra.tip.say) { $lines.Add($extra.tip.say) }
 }
 $lines.Add('')
 $lines.Add('終わったら📮でお母さんに送ってね。今日もがんばろう💪')
