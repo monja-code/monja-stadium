@@ -59,6 +59,16 @@ if (Test-Path $choreFile) {
     foreach ($c in $ch.daily) { $lines.Add('・' + $c) }
   }
 }
+# 家事ポイント（points.json の show の日＝月曜だけ、先週の点とたまった点）
+$ptFile = Join-Path $root 'points.json'
+if (Test-Path $ptFile) {
+  $pt = [IO.File]::ReadAllText($ptFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  if ($pt.show -eq $key) {
+    $lines.Add('')
+    $lines.Add('🏆 家事ポイント（' + $pt.week + '）')
+    foreach ($r in $pt.rows) { $lines.Add(('{0}：先週 {1}点／たまった点 {2}点' -f $r.who, $r.week, $r.total)) }
+  }
+}
 if ($extra -and $extra.tip) {
   $lines.Add('')
   $lines.Add('💡 今日のポイント｜' + $extra.tip.title)
