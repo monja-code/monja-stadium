@@ -48,6 +48,17 @@ if ($extra -and $extra.sheet) {
   $lines.Add($app + 'sheets/' + $extra.sheet.file + '#page=' + $extra.sheet.page)
   $lines.Add('（紙がないときはスマホで見てノートに解く）')
 }
+# 家事分担（chores.json：start の日から、毎日の当番＋その曜日だけの当番）
+$choreFile = Join-Path $root 'chores.json'
+if (Test-Path $choreFile) {
+  $ch = [IO.File]::ReadAllText($choreFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  if (-not $ch.start -or $key -ge $ch.start) {
+    $lines.Add('')
+    $lines.Add('🧹 今日の家のこと')
+    foreach ($c in $ch.byDay.$wd) { $lines.Add('★ ' + $c) }
+    foreach ($c in $ch.daily) { $lines.Add('・' + $c) }
+  }
+}
 if ($extra -and $extra.tip) {
   $lines.Add('')
   $lines.Add('💡 今日のポイント｜' + $extra.tip.title)
