@@ -41,6 +41,13 @@ if ($extra -and $extra.today) {
   $lines.Add('')
   $lines.Add('今日の計画はまだ入っていません。アプリの自主勉で、苦手な単元を1つやろう。')
 }
+if ($extra -and $extra.sheet) {
+  # その日の用紙（問題＋解説のPDF。答えは入れない）へのリンク
+  $lines.Add('')
+  $lines.Add('📄 今日の用紙：' + $extra.sheet.label)
+  $lines.Add($app + 'sheets/' + $extra.sheet.file + '#page=' + $extra.sheet.page)
+  $lines.Add('（紙がないときはスマホで見てノートに解く）')
+}
 if ($extra -and $extra.tip) {
   $lines.Add('')
   $lines.Add('💡 今日のポイント｜' + $extra.tip.title)
