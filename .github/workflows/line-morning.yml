@@ -1,17 +1,51 @@
 name: 朝のLINE（今日の勉強）
 
+# いつ動くか
+#  - 本番：外のサービス（cron-job.org）が毎朝 5:50（日本時間）に「Run workflow」を押す（workflow_dispatch）
+#  - 予備：GitHub の予約（5:40 のつもり。混むと数時間おくれることがある）
+# 同じ日（日本時間）に一度送れていたら、2回目からは送らずに終わる。
+# 手で「もう一度送りたい」ときは、Run workflow の「今日すでに送っていても送る」にチェック。
 on:
   schedule:
-    # 日本時間 5:40（GitHub の予約は混むと数分〜30分ほど遅れるので早めに）
     - cron: '40 20 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '今日すでに送っていても送る'
+        type: boolean
+        default: false
+
+# 2つが同時に動いても、順番に1つずつ（あとのほうは前の結果を見てから決める）
+concurrency:
+  group: line-morning
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   send:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: 今日もう送ったか確かめる
+        id: check
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          $today = [DateTime]::UtcNow.AddHours(9).ToString('yyyy-MM-dd')
+          $runs = gh api "repos/${{ github.repository }}/actions/workflows/line-morning.yml/runs?status=success&per_page=20" | ConvertFrom-Json
+          $sent = @($runs.workflow_runs | Where-Object {
+            $_.id -ne ${{ github.run_id }} -and ([DateTime]$_.created_at).ToUniversalTime().AddHours(9).ToString('yyyy-MM-dd') -eq $today
+          })
+          if ($env:FORCE -eq 'true') { 'もう一度送る（手でチェックあり）'; "skip=false" >> $env:GITHUB_OUTPUT }
+          elseif ($sent.Count -gt 0) { "今日（$today）はもう送っています。今回は送りません"; "skip=true" >> $env:GITHUB_OUTPUT }
+          else { "今日（$today）はまだ。送ります"; "skip=false" >> $env:GITHUB_OUTPUT }
       - name: 今日の計画をLINEで送る
+        if: steps.check.outputs.skip != 'true'
         shell: pwsh
         env:
           LINE_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
